@@ -4,6 +4,7 @@
     "module": "CommonJS",
     "target": "ES5",
     "lib": ["dom", "esnext"],
+    "allowJs": true,
     "declaration": true,
     "strict": true,
     "noImplicitReturns": true,
