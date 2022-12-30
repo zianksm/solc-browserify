@@ -9,8 +9,17 @@ type DepedenciesResponse = {
   message: string;
   data: any;
 };
+
 function browserSolidityCompiler() {
   const ctx: Worker = self as any;
+  // TODO: tidy up code and seperate worker startup and compile
+  // TODO: add error handling
+
+  // must import the soljson binary first then the solc bundler will wrap the binary and emit a solc global window.
+  // IMPORTANT : the bundler is actually just `solc/wrapper` bundled together with webpack
+  // because of that, the bundler version and the binary version must match!
+  importScripts('http://127.0.0.1:8000/scripts/soljson.js');
+  importScripts('http://127.0.0.1:8000/scripts/solc.bundle.js');
 
   ctx.addEventListener('message', async ({ data }) => {
     if (data === 'fetch-compiler-versions') {
@@ -20,36 +29,31 @@ function browserSolidityCompiler() {
           postMessage(result);
         });
     } else {
-      importScripts(data.version);
-      const soljson = ctx.Module;
+      const _solc = (ctx as any).solc;
+      console.log(_solc);
 
-      const resolveDeps = async (path: string) => {
+      function resolveDeps(path: string) {
         const name = path.split('/').pop() as string;
         console.log(name);
 
-        const api = await fetch('https://api-staging.baliola.io/contracts/get');
+        const xhr = new XMLHttpRequest();
 
-        const dependencies: DepedenciesResponse = await api.json();
-        console.log(dependencies.data[name]);
+        xhr.open('GET', 'https://api-staging.baliola.io/contracts/get', false);
+        xhr.send(null);
+
+        const dependencies: DepedenciesResponse = JSON.parse(xhr.response);
+        console.log(dependencies.data);
 
         return {
           contents: dependencies.data[name],
         };
-      };
-
-      if ('_solidity_compile' in soljson) {
-        console.log(soljson);
-
-        const compile = soljson.cwrap('solidity_compile', 'string', [
-          'string',
-          'number',
-        ]);
-
-        console.log(compile);
-
-        const output = JSON.parse(compile(data.input, { import: resolveDeps }));
-        postMessage(output);
       }
+
+      const output = JSON.parse(
+        _solc.compile(data.input, { import: resolveDeps })
+      );
+
+      postMessage(output);
     }
   });
 }
