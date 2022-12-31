@@ -27,7 +27,7 @@ class Compiler {
   }
 
   private activateCompiler() {
-    console.log('activating compiler..');
+    console.log('initializing compiler..');
     // TODO: tidy up code and seperate worker startup and compile
     // TODO: add error handling
 
@@ -38,7 +38,7 @@ class Compiler {
     // TODO : change the importScripts url to production api url
     importScripts('http://127.0.0.1:8000/scripts/soljson.js');
     importScripts('http://127.0.0.1:8000/scripts/solc.bundle.js');
-    console.log('compiler activated');
+    console.log('compiler initialized');
 
     this.solc = this.ctx.solc;
   }
@@ -57,6 +57,8 @@ class Compiler {
   }
 
   private compile(input: any) {
+    console.log(test);
+
     const compilerOutput = this.solc.compile(input, {
       import: this.resolveDeps,
     });
@@ -66,7 +68,6 @@ class Compiler {
 
   private resolveDeps(path: string) {
     const name = path.split('/').pop() as string;
-    console.log(name);
     try {
       const api = new XMLHttpRequest();
 
@@ -74,7 +75,6 @@ class Compiler {
       api.send(null);
 
       const dependencies: DepedenciesResponse = JSON.parse(api.response);
-      console.log(dependencies.data);
 
       return {
         contents: dependencies.data[name],
@@ -87,6 +87,7 @@ class Compiler {
   }
 }
 
+// function placeholder for typescript
 function importScripts(_arg0: string) {
   throw new Error('Function not implemented.');
 }
