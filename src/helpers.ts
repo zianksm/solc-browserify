@@ -1,10 +1,13 @@
-export const createCompileInput = (contractBody: string, options: any = {}): string => {
+export const createCompileInput = (
+  contractBody: string,
+  options: any = {}
+): string => {
   const CompileInput = {
     language: 'Solidity',
     sources: {
-      'Compiled_Contracts': {
-        content: contractBody
-      }
+      Compiled_Contracts: {
+        content: contractBody,
+      },
     },
     settings: {
       ...options,
@@ -16,4 +19,29 @@ export const createCompileInput = (contractBody: string, options: any = {}): str
     },
   };
   return JSON.stringify(CompileInput);
+};
+
+export class CompilerHelpers {
+  public static createCompileInput = (
+    contractBody: string,
+    options: any = {}
+  ): string => {
+    const CompileInput = {
+      language: 'Solidity',
+      sources: {
+        Compiled_Contracts: {
+          content: contractBody,
+        },
+      },
+      settings: {
+        ...options,
+        outputSelection: {
+          '*': {
+            '*': ['*'],
+          },
+        },
+      },
+    };
+    return JSON.stringify(CompileInput);
+  };
 }

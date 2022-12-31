@@ -5,6 +5,8 @@ const worker = new Worker(
   URL.createObjectURL(new Blob([`(new ${Compiler})`], { type: 'module' }))
 );
 
+export class CustomBrowserSolidityCompiler {}
+
 // --------------------------------------------------------
 export const solidityCompiler = async ({
   version,
