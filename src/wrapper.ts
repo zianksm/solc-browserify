@@ -1,4 +1,5 @@
 import { Compiler, CompilerEvent } from './browser.solidity.worker';
+import { _version } from './constant';
 import { CompilerHelpers } from './helpers';
 
 // TODO : make param for import callback
@@ -15,6 +16,16 @@ export class CustomBrowserSolidityCompiler {
    */
   constructor() {
     this.worker = this.createCompilerWebWorker();
+    this.initWorker();
+  }
+
+  private initWorker() {
+    const event: CompilerEvent = {
+      type: 'init',
+      version: _version,
+    };
+
+    this.worker.postMessage(event);
   }
 
   public async compile(contract: string): Promise<any> {

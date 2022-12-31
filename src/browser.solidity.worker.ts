@@ -88,8 +88,6 @@ class Compiler {
   }
 
   private compile(input: any) {
-    console.log(test);
-
     const compilerOutput = this.solc.compile(input, {
       import: this.resolveDeps,
     });
