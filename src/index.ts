@@ -1,10 +1,8 @@
-import { browserSolidityCompiler } from './browser.solidity.worker';
+import { Compiler, browserSolidityCompiler } from './browser.solidity.worker';
 import { createCompileInput } from './helpers';
 
 const worker = new Worker(
-  URL.createObjectURL(
-    new Blob([`(${browserSolidityCompiler})()`], { type: 'module' })
-  )
+  URL.createObjectURL(new Blob([`(new ${Compiler})`], { type: 'module' }))
 );
 
 export const solidityCompiler = async ({
