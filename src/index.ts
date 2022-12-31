@@ -1,9 +1,5 @@
-import {
-  Compiler,
-  CompilerEvent,
-  browserSolidityCompiler,
-} from './browser.solidity.worker';
-import { CompilerHelpers, createCompileInput } from './helpers';
+import { Compiler, CompilerEvent } from './browser.solidity.worker';
+import { CompilerHelpers } from './helpers';
 
 /**
  * instantiate this as soon as possible so that the WebWoker can initialize the compiler
@@ -52,37 +48,3 @@ export class CustomBrowserSolidityCompiler {
     return event;
   }
 }
-
-// --------------------------------------------------------
-const worker = new Worker(
-  URL.createObjectURL(new Blob([`(new ${Compiler})`], { type: 'module' }))
-);
-
-export const solidityCompiler = async ({
-  version,
-  contractBody,
-  options,
-}: {
-  version: string;
-  contractBody: string;
-  options?: { optimizer?: { enabled: boolean; runs: number } };
-}) => {
-  const input = createCompileInput(contractBody, options);
-  return new Promise((resolve, reject) => {
-    worker.postMessage({ input, version });
-    worker.onmessage = function ({ data }) {
-      resolve(data);
-    };
-    worker.onerror = reject;
-  });
-};
-
-export const getCompilerVersions = async () => {
-  return new Promise((resolve, reject) => {
-    worker.postMessage('fetch-compiler-versions');
-    worker.onmessage = function ({ data }) {
-      resolve(data);
-    };
-    worker.onerror = reject;
-  });
-};
