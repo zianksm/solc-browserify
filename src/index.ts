@@ -5,6 +5,7 @@ const worker = new Worker(
   URL.createObjectURL(new Blob([`(new ${Compiler})`], { type: 'module' }))
 );
 
+// --------------------------------------------------------
 export const solidityCompiler = async ({
   version,
   contractBody,

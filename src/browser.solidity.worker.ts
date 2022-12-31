@@ -85,6 +85,8 @@ class Compiler {
   }
 }
 
+// --------------------------------------------------------
+
 function browserSolidityCompiler() {
   const ctx: Worker = self as any;
 
