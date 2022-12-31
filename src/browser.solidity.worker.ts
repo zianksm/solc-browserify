@@ -32,7 +32,7 @@ class Compiler {
     // TODO: add error handling
 
     // must import the soljson binary first then the solc bundler will wrap the binary and emit a solc global window.
-    // IMPORTANT : the bundler is actually just `solc/wrapper` bundled together with webpack
+    // IMPORTANT : the bundler is actually just `solc/wrapper` bundled together with browserify
     // because of that, the bundler version and the binary version must match!
 
     // TODO : change the importScripts url to production api url
