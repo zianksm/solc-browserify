@@ -1,6 +1,7 @@
 import { Compiler, CompilerEvent } from './browser.solidity.worker';
 import { CompilerHelpers } from './helpers';
 
+// TODO : make param for import callback
 /**
  * instantiate this as soon as possible so that the WebWoker can initialize the compiler
  * and is ready for compilation when needed.
@@ -23,7 +24,7 @@ export class CustomBrowserSolidityCompiler {
       this.worker.postMessage(message);
 
       this.worker.onmessage = (event) => {
-        resolve(event.data);
+        resolve(JSON.parse(event.data));
       };
 
       this.worker.onerror = (err) => {
