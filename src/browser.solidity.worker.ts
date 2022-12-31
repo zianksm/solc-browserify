@@ -11,9 +11,24 @@ type DepedenciesResponse = {
   data: any;
 };
 
-type CompilerEvent = {
-  type: 'compile';
-  compilerInput: any;
+type CompilerEvent =
+  | {
+      type: 'compile';
+      compilerInput: any;
+    }
+  | {
+      type: 'init';
+      version: Version;
+    };
+
+type Version = {
+  default: string;
+};
+
+type GetVersionResponse = {
+  builds: any[];
+  releases: any;
+  latestRelease: string;
 };
 
 class Compiler {
@@ -22,12 +37,14 @@ class Compiler {
 
   constructor() {
     this.ctx = self as any;
-    this.activateCompiler();
     this.registerMessageHandler();
   }
 
-  private activateCompiler() {
+  private init(version: Version) {
     console.log('initializing compiler..');
+    const buildVersion = this.getVersionScript(version);
+    console.log(buildVersion);
+
     // TODO: tidy up code and seperate worker startup and compile
     // TODO: add error handling
 
@@ -36,11 +53,21 @@ class Compiler {
     // because of that, the bundler version and the binary version must match!
 
     // TODO : change the importScripts url to production api url
-    importScripts('http://127.0.0.1:8000/scripts/soljson.js');
+    importScripts(`https://binaries.soliditylang.org/bin/${buildVersion}`);
     importScripts('http://127.0.0.1:8000/scripts/solc.bundle.js');
     console.log('compiler initialized');
 
     this.solc = this.ctx.solc;
+  }
+
+  private getVersionScript(version: Version) {
+    const api = new XMLHttpRequest();
+    api.open('GET', 'https://binaries.soliditylang.org/bin/list.json', false);
+    api.send(null);
+
+    const response: GetVersionResponse = JSON.parse(api.response);
+
+    return response.releases[version.default];
   }
 
   private registerMessageHandler() {
@@ -50,15 +77,17 @@ class Compiler {
           this.compile(event.data.compilerInput);
           break;
 
+        case 'init':
+          this.init(event.data.version);
+          break;
+
         default:
-          console.log('invalid message type: ' + event.data.type);
+          console.log('invalid message type: ' + event.data);
       }
     };
   }
 
   private compile(input: any) {
-    console.log(test);
-
     const compilerOutput = this.solc.compile(input, {
       import: this.resolveDeps,
     });
@@ -92,4 +121,4 @@ function importScripts(_arg0: string) {
   throw new Error('Function not implemented.');
 }
 
-export { Compiler, CompilerEvent };
+export { Compiler, CompilerEvent, Version as version };
