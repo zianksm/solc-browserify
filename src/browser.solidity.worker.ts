@@ -34,6 +34,8 @@ class Compiler {
     // must import the soljson binary first then the solc bundler will wrap the binary and emit a solc global window.
     // IMPORTANT : the bundler is actually just `solc/wrapper` bundled together with webpack
     // because of that, the bundler version and the binary version must match!
+
+    // TODO : change the importScripts url to production api url
     importScripts('http://127.0.0.1:8000/scripts/soljson.js');
     importScripts('http://127.0.0.1:8000/scripts/solc.bundle.js');
     console.log('compiler activated');
