@@ -8,6 +8,12 @@ declare global {
   }
 }
 
+export type FnString = {
+  name: string;
+  args: string;
+  body: string;
+};
+
 type DepedenciesResponse = {
   status: boolean;
   message: string;
@@ -23,7 +29,7 @@ type CompilerEvent =
       /**
        * MUST be a pure function to avoid reference errors.
        */
-      importCallback?: ImportCallbackFn;
+      importCallback?: FnString;
     }
   | {
       type: 'init';
@@ -100,15 +106,24 @@ class Compiler {
     };
   }
 
-  private compile(input: any, fn?: ImportCallbackFn) {
-    const compilerOutput =
-      fn === undefined
-        ? this.solc.compile(input)
-        : this.solc.compile(input, {
-            import: fn,
-          });
+  private compile(input: any, fn?: FnString) {
+    let compilerOutput;
 
+    if (fn === undefined) {
+      compilerOutput = this.solc.compile(input);
+    } else {
+      console.log('constructing import callback function..');
+      console.time('constructing import callback function took');
+      const callback = this.constructFn(fn);
+      console.timeEnd('constructing import callback function took');
+
+      compilerOutput = this.solc.compile(input, { import: callback });
+    }
     this.ctx.postMessage(compilerOutput);
+  }
+
+  private constructFn(fn: FnString) {
+    return new Function(fn.args, fn.body);
   }
 }
 

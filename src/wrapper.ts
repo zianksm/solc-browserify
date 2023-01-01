@@ -6,7 +6,7 @@ import {
   ImportCallbackReturnType,
 } from './browser.solidity.worker';
 import { _version } from './constant';
-import { CompilerHelpers } from './helpers';
+import { CompilerHelpers, FnTransform } from './helpers';
 
 // TODO : make param for import callback
 /**
@@ -33,7 +33,27 @@ export class CustomBrowserSolidityCompiler {
 
     this.worker.postMessage(event);
   }
-
+  /**
+   *
+   * @param contract contract body
+   * @param importCallback import callback function, currently does not support arrow function. only support synchronous function.
+   * ```javascript
+   * // this is not supported
+   * const resolveDeps = (path) =>{
+   * // ... some code
+   * }
+   *
+   * // this is supported
+   * function resolveDeps(path) {
+   * // ... some code
+   * }
+   *
+   * // this is supported
+   * const resolveDeps = function (path) =>{
+   * // ... some code
+   * }
+   * ```
+   */
   public async compile(
     contract: string,
     importCallback?: ImportCallbackFn
@@ -64,9 +84,11 @@ export class CustomBrowserSolidityCompiler {
     importCallback?: ImportCallbackFn
   ) {
     const compilerInput = CompilerHelpers.createCompileInput(contract);
+    const fnStr = FnTransform.stringify(importCallback);
+
     const event: CompilerEvent = {
       type: 'compile',
-      importCallback,
+      importCallback: fnStr,
       compilerInput,
     };
 
