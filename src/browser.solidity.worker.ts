@@ -2,6 +2,7 @@ declare global {
   interface Worker {
     Module: any;
     solc: any;
+    wrapper: any;
   }
 }
 
@@ -41,23 +42,27 @@ class Compiler {
   }
 
   private init(version: Version) {
-    console.log('initializing compiler..');
+    console.time('compiler initialization took');
+    console.log('initializing compiler using WebWorker');
     const buildVersion = this.getVersionScript(version);
-    console.log(buildVersion);
 
-    // TODO: tidy up code and seperate worker startup and compile
     // TODO: add error handling
 
     // must import the soljson binary first then the solc bundler will wrap the binary and emit a solc global window.
     // IMPORTANT : the bundler is actually just `solc/wrapper` bundled together with browserify
     // because of that, the bundler version and the binary version must match!
 
-    // TODO : change the importScripts url to production api url
+    // will emit global `Module`
     importScripts(`https://binaries.soliditylang.org/bin/${buildVersion}`);
-    importScripts('http://127.0.0.1:8000/scripts/solc.bundle.js');
-    console.log('compiler initialized');
+    // will emit global `wrapper`
+    importScripts(
+      'https://unpkg.com/solc-wrapper-bundle@latest/dist/bundle.js'
+    );
+    const wrapper = this.ctx.wrapper;
+    const module = this.ctx.Module;
 
-    this.solc = this.ctx.solc;
+    this.solc = wrapper(module);
+    console.timeEnd('compiler initialization took');
   }
 
   private getVersionScript(version: Version) {
