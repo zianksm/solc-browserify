@@ -1,6 +1,12 @@
-import { Compiler, CompilerEvent } from './browser.solidity.worker';
+import {
+  Compiler,
+  CompilerEvent,
+  DepedenciesResponse,
+  ImportCallbackFn,
+  ImportCallbackReturnType,
+} from './browser.solidity.worker';
 import { _version } from './constant';
-import { CompilerHelpers } from './helpers';
+import { CompilerHelpers, FnTransform } from './helpers';
 
 // TODO : make param for import callback
 /**
@@ -27,10 +33,33 @@ export class CustomBrowserSolidityCompiler {
 
     this.worker.postMessage(event);
   }
-
-  public async compile(contract: string): Promise<any> {
+  /**
+   *
+   * @param contract contract body
+   * @param importCallback import callback function, currently does not support arrow function. only support synchronous function.
+   * ```javascript
+   * // this is not supported
+   * const resolveDeps = (path) =>{
+   * // ... some code
+   * }
+   *
+   * // this is supported
+   * function resolveDeps(path) {
+   * // ... some code
+   * }
+   *
+   * // this is supported
+   * const resolveDeps = function (path) =>{
+   * // ... some code
+   * }
+   * ```
+   */
+  public async compile(
+    contract: string,
+    importCallback?: ImportCallbackFn
+  ): Promise<any> {
     return new Promise((resolve, reject) => {
-      const message = this.createCompilerInput(contract);
+      const message = this.createCompilerInput(contract, importCallback);
 
       this.worker.postMessage(message);
 
@@ -50,11 +79,17 @@ export class CustomBrowserSolidityCompiler {
     );
   }
 
-  private createCompilerInput(contract: string) {
-    const input = CompilerHelpers.createCompileInput(contract);
+  private createCompilerInput(
+    contract: string,
+    importCallback?: ImportCallbackFn
+  ) {
+    const compilerInput = CompilerHelpers.createCompileInput(contract);
+    const fnStr = FnTransform.stringify(importCallback);
+
     const event: CompilerEvent = {
       type: 'compile',
-      compilerInput: input,
+      importCallback: fnStr,
+      compilerInput,
     };
 
     return event;

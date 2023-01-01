@@ -1,3 +1,5 @@
+// worker cannot import modules directly using require or import statements. because we activate the worker using inline blob method.
+// worker should use imporScripts instead.
 declare global {
   interface Worker {
     Module: any;
@@ -6,16 +8,28 @@ declare global {
   }
 }
 
+export type FnString = {
+  name: string;
+  args: string;
+  body: string;
+};
+
 type DepedenciesResponse = {
   status: boolean;
   message: string;
   data: any;
 };
+type ImportCallbackReturnType = { contents: string } | { error: string };
+type ImportCallbackFn = (path: string) => ImportCallbackReturnType;
 
 type CompilerEvent =
   | {
       type: 'compile';
       compilerInput: any;
+      /**
+       * MUST be a pure function to avoid reference errors.
+       */
+      importCallback?: FnString;
     }
   | {
       type: 'init';
@@ -79,7 +93,7 @@ class Compiler {
     this.ctx.onmessage = (event: MessageEvent<CompilerEvent>) => {
       switch (event.data.type) {
         case 'compile':
-          this.compile(event.data.compilerInput);
+          this.compile(event.data.compilerInput, event.data.importCallback);
           break;
 
         case 'init':
@@ -92,32 +106,24 @@ class Compiler {
     };
   }
 
-  private compile(input: any) {
-    const compilerOutput = this.solc.compile(input, {
-      import: this.resolveDeps,
-    });
+  private compile(input: any, fn?: FnString) {
+    let compilerOutput;
 
+    if (fn === undefined) {
+      compilerOutput = this.solc.compile(input);
+    } else {
+      console.log('constructing import callback function..');
+      console.time('constructing import callback function took');
+      const callback = this.constructFn(fn);
+      console.timeEnd('constructing import callback function took');
+
+      compilerOutput = this.solc.compile(input, { import: callback });
+    }
     this.ctx.postMessage(compilerOutput);
   }
 
-  private resolveDeps(path: string) {
-    const name = path.split('/').pop() as string;
-    try {
-      const api = new XMLHttpRequest();
-
-      api.open('GET', 'https://api-staging.baliola.io/contracts/get', false);
-      api.send(null);
-
-      const dependencies: DepedenciesResponse = JSON.parse(api.response);
-
-      return {
-        contents: dependencies.data[name],
-      };
-    } catch (error) {
-      return {
-        error: `could not find source contract for ${name}`,
-      };
-    }
+  private constructFn(fn: FnString) {
+    return new Function(fn.args, fn.body);
   }
 }
 
@@ -126,4 +132,11 @@ function importScripts(_arg0: string) {
   throw new Error('Function not implemented.');
 }
 
-export { Compiler, CompilerEvent, Version as version };
+export {
+  Compiler,
+  CompilerEvent,
+  Version as version,
+  ImportCallbackFn,
+  ImportCallbackReturnType,
+  DepedenciesResponse,
+};
