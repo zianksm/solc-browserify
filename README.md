@@ -1,56 +1,31 @@
-# Browser Solidity Compiler
-Inspired by https://github.com/ethereum/solc-js, This browser solidity compiler works in your browser environments built with Reactjs, vueJS etc.
+![](https://img.shields.io/badge/using%20solc-0.8.17-blue)
 
-### Installation
-```
-npm i @agnostico/browser-solidity-compiler
-```
+# Solc Browserify
 
-or with yarn
-```
-yarn add @agnostico/browser-solidity-compiler
-```
+Solidity Compiler for the browser. Powered by WebWorker.
 
-### Then import your application
-```
-import { solidityCompiler, getCompilerVersions } from "@agnostico/browser-solidity-compiler";
-```
-##### To load available solidity versions from https://binaries.soliditylang.org/bin/list.json
+# About
 
-```
-await getCompilerVersions()
-```
-This returns an object containing
-1. Release versions
-2. Latest release version
-3. Builds (releases + nightly versions)
+This package is heavily inspired by [rexdavinci/browser-solidity-compiler](https://github.com/rexdavinci/browser-solidity-compiler).
 
-##### To compile a contract
-```
-await solidityCompiler({
-  version: `https://binaries.soliditylang.org/bin/${version}`,
-  contractBody: content,
-  options,
-})
-```
+### **Why another package?**
 
-| Name | Type | Required | Default
-|-|-|-|-|
-| version | `string` | Yes | 
-| contractBody | `string` | Yes |
-| options | `object` | No | { } |
+this package uses a different method to initialize the compiler, it uses the bundled `solc/wrapper` module provided by solc.
 
-The options parameter currently ONLY supports the choice to add optimization
+### **How it works**
 
-```
-options.optimizer = {
-  enabled: boolean,
-  runs: number,
-}
-```
+this is accomplished by browserifying the `solc/wrapper` module, and then uploading the bundled module to npm. the worker then fetch the bundled wrapper module directly using `importScripts` from `unkpg(open-source cdn for npm)` . check the bundled module [here](https://www.npmjs.com/package/solc-wrapper-bundle).
 
-[example](https://github.com/rexdavinci/browser-solidity-compiler/tree/example)
+### **Why use the bundled wrapper ?**
 
+the [rexdavinci/browser-solidity-compiler](https://github.com/rexdavinci/browser-solidity-compiler) uses the built-in wasm `cwrap` function to initialize the compiler. although this works, the initialized compiler does not support import callbacks, which is important when you are building complex smart contracts.
 
+by using the bundled native `solc/wrapper`, it enables custom import callbacks function. which then you can pass arbitrary but pure functions when initalizing the compiler.
 
+but this came at a cost, because we use the bundled native `solc/wrapper`, we effectively can only wrap the same `solc` binary version as the bundled `solc/wrapper`. there is currently no effecient and easy way to bundle `solc/wrapper` on the fly. solc version will be displayed using a badge in the readme.
 
+# Usage
+
+# Example
+
+**WIP**

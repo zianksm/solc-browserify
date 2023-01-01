@@ -1,9 +1,9 @@
 {
   "compilerOptions": {
     "outDir": "dist",
-    "module": "CommonJS",
+    "module": "ESNext",
     "target": "ESNext",
-    "lib": ["dom", "esnext"],
+    "lib": ["DOM", "esnext"],
     "allowJs": true,
     "declaration": true,
     "strict": true,
@@ -11,9 +11,9 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "esModuleInterop": true,
-    "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "sourceMap": true
+    "sourceMap": true,
+    "moduleResolution": "Node"
   },
   "include": ["./src/"],
   "exclude": ["./src/test", "node_modules"]
