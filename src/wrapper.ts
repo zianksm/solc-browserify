@@ -1,14 +1,11 @@
 import {
   Compiler,
   CompilerEvent,
-  DepedenciesResponse,
   ImportCallbackFn,
-  ImportCallbackReturnType,
 } from './browser.solidity.worker';
 import { _version } from './constant';
 import { CompilerHelpers, FnTransform } from './helpers';
 
-// TODO : make param for import callback
 /**
  * instantiate this as soon as possible so that the WebWoker can initialize the compiler
  * and is ready for compilation when needed.
