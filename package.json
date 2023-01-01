@@ -5,7 +5,9 @@
   "main": "dist/bundle.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "bundle-solc": "npx browserify ./src/bundler.js > ./dist/bundle.js -t babelify"
+    "update-readme": "node ./src/maintain-script/update-readme.js",
+    "bundle-solc": "npx browserify ./src/bundler.js > ./dist/bundle.js -t babelify",
+    "maintain": "yarn upgrade solc && yarn run update-readme && yarn run bundle-solc "
   },
   "repository": {
     "type": "git",
