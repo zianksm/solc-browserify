@@ -1,3 +1,5 @@
+// worker cannot import modules directly using require or import statements. because we activate the worker using inline blob method.
+// worker should use imporScripts instead.
 declare global {
   interface Worker {
     Module: any;
@@ -11,7 +13,7 @@ type DepedenciesResponse = {
   message: string;
   data: any;
 };
-type ImportCallbackReturnType = { content: string } | { error: string };
+type ImportCallbackReturnType = { contents: string } | { error: string };
 type ImportCallbackFn = (path: string) => ImportCallbackReturnType;
 
 type CompilerEvent =
@@ -98,32 +100,15 @@ class Compiler {
     };
   }
 
-  private compile(input: any, fn: ImportCallbackFn) {
-    const compilerOutput = this.solc.compile(input, {
-      import: fn,
-    });
+  private compile(input: any, fn?: ImportCallbackFn) {
+    const compilerOutput =
+      fn === undefined
+        ? this.solc.compile(input)
+        : this.solc.compile(input, {
+            import: fn,
+          });
 
     this.ctx.postMessage(compilerOutput);
-  }
-
-  private resolveDeps(path: string) {
-    const name = path.split('/').pop() as string;
-    try {
-      const api = new XMLHttpRequest();
-
-      api.open('GET', 'https://api-staging.baliola.io/contracts/get', false);
-      api.send(null);
-
-      const dependencies: DepedenciesResponse = JSON.parse(api.response);
-
-      return {
-        contents: dependencies.data[name],
-      };
-    } catch (error) {
-      return {
-        error: `could not find source contract for ${name}`,
-      };
-    }
   }
 }
 
@@ -138,4 +123,5 @@ export {
   Version as version,
   ImportCallbackFn,
   ImportCallbackReturnType,
+  DepedenciesResponse,
 };

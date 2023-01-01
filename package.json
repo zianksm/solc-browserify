@@ -50,5 +50,8 @@
     "eslint": "^8.24.0",
     "solc": "^0.8.17",
     "typescript": "^4.8.4"
+  },
+  "dependencies": {
+    "jsonfn": "^0.31.0"
   }
 }

@@ -1,4 +1,10 @@
-import { Compiler, CompilerEvent } from './browser.solidity.worker';
+import {
+  Compiler,
+  CompilerEvent,
+  DepedenciesResponse,
+  ImportCallbackFn,
+  ImportCallbackReturnType,
+} from './browser.solidity.worker';
 import { _version } from './constant';
 import { CompilerHelpers } from './helpers';
 
@@ -28,9 +34,12 @@ export class CustomBrowserSolidityCompiler {
     this.worker.postMessage(event);
   }
 
-  public async compile(contract: string): Promise<any> {
+  public async compile(
+    contract: string,
+    importCallback?: ImportCallbackFn
+  ): Promise<any> {
     return new Promise((resolve, reject) => {
-      const message = this.createCompilerInput(contract);
+      const message = this.createCompilerInput(contract, importCallback);
 
       this.worker.postMessage(message);
 
@@ -50,11 +59,15 @@ export class CustomBrowserSolidityCompiler {
     );
   }
 
-  private createCompilerInput(contract: string) {
-    const input = CompilerHelpers.createCompileInput(contract);
+  private createCompilerInput(
+    contract: string,
+    importCallback?: ImportCallbackFn
+  ) {
+    const compilerInput = CompilerHelpers.createCompileInput(contract);
     const event: CompilerEvent = {
       type: 'compile',
-      compilerInput: input,
+      importCallback,
+      compilerInput,
     };
 
     return event;
