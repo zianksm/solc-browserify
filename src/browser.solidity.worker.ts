@@ -11,11 +11,17 @@ type DepedenciesResponse = {
   message: string;
   data: any;
 };
+type ImportCallbackReturnType = { content: string } | { error: string };
+type ImportCallbackFn = (path: string) => ImportCallbackReturnType;
 
 type CompilerEvent =
   | {
       type: 'compile';
       compilerInput: any;
+      /**
+       * MUST be a pure function to avoid reference errors.
+       */
+      importCallback?: ImportCallbackFn;
     }
   | {
       type: 'init';
@@ -79,7 +85,7 @@ class Compiler {
     this.ctx.onmessage = (event: MessageEvent<CompilerEvent>) => {
       switch (event.data.type) {
         case 'compile':
-          this.compile(event.data.compilerInput);
+          this.compile(event.data.compilerInput, event.data.importCallback);
           break;
 
         case 'init':
@@ -92,9 +98,9 @@ class Compiler {
     };
   }
 
-  private compile(input: any) {
+  private compile(input: any, fn: ImportCallbackFn) {
     const compilerOutput = this.solc.compile(input, {
-      import: this.resolveDeps,
+      import: fn,
     });
 
     this.ctx.postMessage(compilerOutput);
@@ -126,4 +132,10 @@ function importScripts(_arg0: string) {
   throw new Error('Function not implemented.');
 }
 
-export { Compiler, CompilerEvent, Version as version };
+export {
+  Compiler,
+  CompilerEvent,
+  Version as version,
+  ImportCallbackFn,
+  ImportCallbackReturnType,
+};
