@@ -10,7 +10,7 @@ import { CompilerHelpers, FnTransform } from './helpers';
  * instantiate this as soon as possible so that the WebWoker can initialize the compiler
  * and is ready for compilation when needed.
  */
-export class CustomBrowserSolidityCompiler {
+export class Solc {
   private worker: Worker;
 
   /**

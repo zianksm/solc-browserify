@@ -26,6 +26,36 @@ but this came at a cost, because we use the bundled native `solc/wrapper`, we ef
 
 # Usage
 
+## **Installation**
+
+```bash
+npm i solc-browerify
+```
+
+### using yarn
+
+```bash
+yarn add solc-browerify
+```
+
+## **Import it in your app**
+
+```typescript
+import {
+  CustomBrowserSolidityCompiler,
+  ImportCallbackFn,
+  ImportCallbackReturnType,
+} from 'solc-browserify';
+```
+
+## **Create a new Compiler Instance**
+
+```typescript
+const compiler = new CustomBrowserSolidityCompiler();
+```
+
+Note that when creating a new compiler instance, the newly created worker will fetch `solc/wrapper` bundle(~500 KB) and the `solc` binary(~8 MB). this may take a while.
+
 # Example
 
 **WIP**
