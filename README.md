@@ -1,4 +1,5 @@
 # solc-wrapper-bundle
-using solc : 0.8.17
+![](https://img.shields.io/badge/using%20solc-0.8.17-blue)
+
 
 `solc/wrapper` bundled with browserify and babelify for browser usage. intended to be used from `WebWorker` by importing the contents using `importScripts()` from [unpkg](https://unpkg.com/).

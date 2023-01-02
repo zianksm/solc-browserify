@@ -8,7 +8,8 @@ async function main() {
     const version = solcJson.version;
 
     const readmeContent = `# solc-wrapper-bundle
-using solc : ${version}
+![](https://img.shields.io/badge/using%20solc-${version}-blue)
+
 
 \`solc/wrapper\` bundled with browserify and babelify for browser usage. intended to be used from \`WebWorker\` by importing the contents using \`importScripts()\` from [unpkg](https://unpkg.com/).`
 
