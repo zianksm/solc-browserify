@@ -14,11 +14,6 @@ export type FnString = {
   body: string;
 };
 
-type DepedenciesResponse = {
-  status: boolean;
-  message: string;
-  data: any;
-};
 type ImportCallbackReturnType = { contents: string } | { error: string };
 type ImportCallbackFn = (path: string) => ImportCallbackReturnType;
 
@@ -138,5 +133,4 @@ export {
   Version as version,
   ImportCallbackFn,
   ImportCallbackReturnType,
-  DepedenciesResponse,
 };
