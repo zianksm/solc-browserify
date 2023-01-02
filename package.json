@@ -1,6 +1,6 @@
 {
   "name": "solc-browserify",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Solidity compiler for the browser",
   "keywords": [
     "solidity",
@@ -21,8 +21,9 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git:https://github.com/zianksm/solc-browserify.git"
+    "url": "https://github.com/zianksm/solc-browserify"
   },
+  "homepage": "https://github.com/zianksm/solc-browserify#readme",
   "bugs": {
     "url": "https://github.com/zianksm/solc-browserify/issues"
   },
