@@ -1,6 +1,6 @@
 {
   "name": "solc-wrapper-bundle",
-  "version": "0.1.0",
+  "version": "0.8.17",
   "description": "the solc/wrapper module bundled using browserify",
   "main": "dist/bundle.js",
   "scripts": {
