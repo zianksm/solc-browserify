@@ -14,7 +14,7 @@ this package uses a different method to initialize the compiler, it uses the bun
 
 ### **How it works**
 
-this is accomplished by browserifying the `solc/wrapper` module, and then uploading the bundled module to npm. the worker then fetch the bundled wrapper module directly using `importScripts` from `unkpg(open-source cdn for npm)` . check the bundled module [here](https://www.npmjs.com/package/solc-wrapper-bundle).
+this is accomplished by using a **dedicated web worker** and browserifying the `solc/wrapper` module, and then uploading the bundled module to npm. the worker then fetch the bundled wrapper module directly using `importScripts` from `unkpg(open-source cdn for npm)`. check the bundled module [here](https://www.npmjs.com/package/solc-wrapper-bundle).
 
 ### **Why use the bundled wrapper ?**
 
@@ -42,19 +42,69 @@ yarn add solc-browerify
 
 ```typescript
 import {
-  CustomBrowserSolidityCompiler,
+  Solc,
   ImportCallbackFn,
   ImportCallbackReturnType,
-} from 'solc-browserify';
+} from "solc-browserify";
 ```
 
 ## **Create a new Compiler Instance**
 
 ```typescript
-const compiler = new CustomBrowserSolidityCompiler();
+const compiler = new Solc();
 ```
 
 Note that when creating a new compiler instance, the newly created worker will fetch `solc/wrapper` bundle(~500 KB) and the `solc` binary(~8 MB). this may take a while.
+
+## **Compile**
+
+```typescript
+const output = await compiler.compile(contract);
+```
+
+### or
+
+```typescript
+const output = compiler.compile(contract).then((output) => /** do something with the output */);
+```
+
+## **Support for Import Callback**
+
+this package have support for passing import callback function to the compiler.
+note that the import callback function MUST be pure, synchronous, and takes in exactly 1 parameter for the import path.
+
+### **Basic example using import callback**
+
+```typescript
+const contract = `import "lib.sol";
+
+contract C {
+
+    function f() public {
+         L.f();
+    }
+}`;
+
+const importCallback: ImportCallbackFn = function (
+  path: string
+): ImportCallbackReturnType {
+  const libSol = `library L { function f() internal returns (uint) { return 7; }`;
+
+  let contract: ImportCallbackReturnType = null;
+
+  if (path === "lib.sol") {
+    contract = { contents: libSol };
+
+    return contract;
+  }
+
+  contract = {
+    error: `could not find source contract for ${path}`,
+  };
+
+  return contract;
+};
+```
 
 # Example
 

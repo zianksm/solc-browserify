@@ -12,18 +12,13 @@
     "angular",
     "nodejs",
     "ethereum",
-    "web3"
+    "web3",
+    "compiler"
   ],
   "typings": "dist/index.d.ts",
   "files": [
     "dist"
   ],
-  "prettier": {
-    "printWidth": 80,
-    "semi": true,
-    "singleQuote": true,
-    "trailingComma": "es5"
-  },
   "repository": {
     "type": "git",
     "url": "git:https://github.com/zianksm/solc-browserify.git"
@@ -41,9 +36,6 @@
   "author": "Zian <mynameiszian@gmail.com>",
   "license": "MIT",
   "devDependencies": {
-    "@types/jest": "^29.0.3",
-    "@typescript-eslint/eslint-plugin": "^5.38.1",
-    "@typescript-eslint/parser": "^5.38.1",
     "babelify": "^10.0.0",
     "browserify": "^17.0.0",
     "eslint": "^8.24.0",
