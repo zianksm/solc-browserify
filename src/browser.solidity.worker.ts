@@ -19,7 +19,7 @@ type ImportCallbackFn = (path: string) => ImportCallbackReturnType;
 
 type CompilerEvent =
   | {
-      type: 'compile';
+      type: "compile";
       compilerInput: any;
       /**
        * MUST be a pure function to avoid reference errors.
@@ -27,7 +27,7 @@ type CompilerEvent =
       importCallback?: FnString;
     }
   | {
-      type: 'init';
+      type: "init";
       version: Version;
     };
 
@@ -51,8 +51,6 @@ class Compiler {
   }
 
   private init(version: Version) {
-    console.time('compiler initialization took');
-    console.log('initializing compiler using WebWorker');
     const buildVersion = this.getVersionScript(version);
 
     // TODO: add error handling
@@ -65,18 +63,17 @@ class Compiler {
     importScripts(`https://binaries.soliditylang.org/bin/${buildVersion}`);
     // will emit global `wrapper`
     importScripts(
-      'https://unpkg.com/solc-wrapper-bundle@latest/dist/bundle.js'
+      "https://unpkg.com/solc-wrapper-bundle@latest/dist/bundle.js"
     );
     const wrapper = this.ctx.wrapper;
     const module = this.ctx.Module;
 
     this.solc = wrapper(module);
-    console.timeEnd('compiler initialization took');
   }
 
   private getVersionScript(version: Version) {
     const api = new XMLHttpRequest();
-    api.open('GET', 'https://binaries.soliditylang.org/bin/list.json', false);
+    api.open("GET", "https://binaries.soliditylang.org/bin/list.json", false);
     api.send(null);
 
     const response: GetVersionResponse = JSON.parse(api.response);
@@ -87,16 +84,16 @@ class Compiler {
   private registerMessageHandler() {
     this.ctx.onmessage = (event: MessageEvent<CompilerEvent>) => {
       switch (event.data.type) {
-        case 'compile':
+        case "compile":
           this.compile(event.data.compilerInput, event.data.importCallback);
           break;
 
-        case 'init':
+        case "init":
           this.init(event.data.version);
           break;
 
         default:
-          console.log('invalid message type: ' + event.data);
+          console.log("invalid message type: " + event.data);
       }
     };
   }
@@ -107,10 +104,7 @@ class Compiler {
     if (fn === undefined) {
       compilerOutput = this.solc.compile(input);
     } else {
-      console.log('constructing import callback function..');
-      console.time('constructing import callback function took');
       const callback = this.constructFn(fn);
-      console.timeEnd('constructing import callback function took');
 
       compilerOutput = this.solc.compile(input, { import: callback });
     }
@@ -124,7 +118,7 @@ class Compiler {
 
 // function placeholder for typescript
 function importScripts(_arg0: string) {
-  throw new Error('Function not implemented.');
+  throw new Error("Function not implemented.");
 }
 
 export {
