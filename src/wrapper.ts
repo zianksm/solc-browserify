@@ -2,29 +2,47 @@ import {
   Compiler,
   CompilerEvent,
   ImportCallbackFn,
-} from './browser.solidity.worker';
-import { _version } from './constant';
-import { CompilerHelpers, FnTransform } from './helpers';
+} from "./browser.solidity.worker";
+import { _version } from "./constant";
+import { CompilerHelpers, FnTransform } from "./helpers";
 
+export type CallbackFn = (Solc: Solc) => any;
 /**
  * instantiate this as soon as possible so that the WebWoker can initialize the compiler
  * and is ready for compilation when needed.
  */
 export class Solc {
   private worker: Worker;
+  callback: CallbackFn | undefined;
 
   /**
    * instantiate this as soon as possible so that the WebWoker can initialize the compiler
    * and is ready for compilation when needed.
    */
-  constructor() {
+  constructor(callback?: CallbackFn) {
+    this.callback = callback;
     this.worker = this.createCompilerWebWorker();
+    this.onready();
     this.initWorker();
+  }
+
+  private onready() {
+    this.worker.onmessage = (_event) => {
+      const event: CompilerEvent = _event.data as any;
+
+      if (this.callback === undefined) {
+        return;
+      }
+
+      if (event.type === "ready") {
+        this.callback(this);
+      }
+    };
   }
 
   private initWorker() {
     const event: CompilerEvent = {
-      type: 'init',
+      type: "init",
       version: _version,
     };
 
@@ -60,8 +78,18 @@ export class Solc {
 
       this.worker.postMessage(message);
 
-      this.worker.onmessage = (event) => {
-        resolve(JSON.parse(event.data));
+      this.worker.onmessage = (event: MessageEvent<CompilerEvent>) => {
+        if (event.data.type === "out") {
+          resolve(JSON.parse(event.data.output));
+        }
+
+        // in case of the compile method is invoked before the callback is executed.
+        //usually the compile method is invoked when the compiler isn't yet initialized.
+        if (event.data.type === "ready") {
+          if (this.callback !== undefined) {
+            this.callback(this);
+          }
+        }
       };
 
       this.worker.onerror = (err) => {
@@ -72,7 +100,7 @@ export class Solc {
 
   private createCompilerWebWorker() {
     return new Worker(
-      URL.createObjectURL(new Blob([`(new ${Compiler})`], { type: 'module' }))
+      URL.createObjectURL(new Blob([`(new ${Compiler})`], { type: "module" }))
     );
   }
 
@@ -84,7 +112,7 @@ export class Solc {
     const fnStr = FnTransform.stringify(importCallback);
 
     const event: CompilerEvent = {
-      type: 'compile',
+      type: "compile",
       importCallback: fnStr,
       compilerInput,
     };
