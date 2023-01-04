@@ -33,7 +33,7 @@
     "test:cover": "jest --coverage",
     "lint": "eslint .",
     "build": "tsc",
-    "publish": "yarn run publish && npm publish"
+    "publish": "yarn run build && npm publish"
   },
   "author": "Zian <mynameiszian@gmail.com>",
   "license": "MIT",
