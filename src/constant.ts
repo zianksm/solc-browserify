@@ -1,10 +1,8 @@
-import { version } from "./browser.solidity.worker";
-
-const DEFAULT_COMPILER_VERSION = "0.8.17";
+import { version } from './browser.solidity.worker';
 
 /**
  * compiler version used
  */
 export const _version: version = {
-  default: DEFAULT_COMPILER_VERSION,
+  default: '0.8.17',
 } as const;

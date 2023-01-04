@@ -1,6 +1,6 @@
 {
   "name": "solc-browserify",
-  "version": "1.1.1",
+  "version": "1.0.1",
   "description": "Solidity compiler for the browser",
   "keywords": [
     "solidity",
@@ -32,8 +32,7 @@
     "test": "jest --verbose",
     "test:cover": "jest --coverage",
     "lint": "eslint .",
-    "build": "tsc",
-    "publish": "yarn run publish && npm publish"
+    "build": "tsc"
   },
   "author": "Zian <mynameiszian@gmail.com>",
   "license": "MIT",
