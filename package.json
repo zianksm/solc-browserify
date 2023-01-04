@@ -32,8 +32,7 @@
     "test": "jest --verbose",
     "test:cover": "jest --coverage",
     "lint": "eslint .",
-    "build": "tsc",
-    "publish": "yarn run publish && npm publish"
+    "build": "tsc"
   },
   "author": "Zian <mynameiszian@gmail.com>",
   "license": "MIT",
