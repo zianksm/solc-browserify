@@ -29,6 +29,10 @@ type CompilerEvent =
   | {
       type: "init";
       version: Version;
+    }
+  | {
+      type: "ready";
+      status: boolean;
     };
 
 type Version = {
