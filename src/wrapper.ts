@@ -9,7 +9,7 @@ import { CompilerHelpers, FnTransform } from "./helpers";
 export type CallbackFn = (Solc: Solc) => any;
 export type CompilerOutput<T = any, U = any> = {
   contracts: T;
-  errors: CompilerError;
+  errors: CompilerError[];
   sources: U;
 };
 export type CompilerError = {
