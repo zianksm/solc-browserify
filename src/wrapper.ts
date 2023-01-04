@@ -7,11 +7,27 @@ import { _version } from "./constant";
 import { CompilerHelpers, FnTransform } from "./helpers";
 
 export type CallbackFn = (Solc: Solc) => any;
-export type CompilerOutput = {
-  contracts: any;
-  errors: any;
-  sources: any;
+export type CompilerOutput<T = any, U = any> = {
+  contracts: T;
+  errors: CompilerError;
+  sources: U;
 };
+export type CompilerError = {
+  component: string;
+  errorCode: string;
+  formattedMessage: string;
+  message: string;
+  severity: string;
+  sourceLocation: SourceLocation;
+  type: string;
+};
+
+export type SourceLocation = {
+  end: number;
+  file: string;
+  start: number;
+};
+
 /**
  * instantiate this as soon as possible so that the WebWoker can initialize the compiler
  * and is ready for compilation when needed.
