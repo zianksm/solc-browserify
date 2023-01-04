@@ -22,8 +22,8 @@ export class Solc {
   constructor(callback?: CallbackFn) {
     this.callback = callback;
     this.worker = this.createCompilerWebWorker();
-    this.initWorker();
     this.onready();
+    this.initWorker();
   }
 
   private onready() {
@@ -81,6 +81,14 @@ export class Solc {
       this.worker.onmessage = (event: MessageEvent<CompilerEvent>) => {
         if (event.data.type === "out") {
           resolve(JSON.parse(event.data.output));
+        }
+
+        // in case of the compile method is invoked before the callback is executed.
+        //usually the compile method is invoked when the compiler isn't yet initialized.
+        if (event.data.type === "ready") {
+          if (this.callback !== undefined) {
+            this.callback(this);
+          }
         }
       };
 
