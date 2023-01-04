@@ -114,7 +114,10 @@ export class Solc {
     importCallback?: ImportCallbackFn
   ) {
     const compilerInput = CompilerHelpers.createCompileInput(contract);
-    const fnStr = FnTransform.stringify(importCallback);
+    const fnStr =
+      importCallback !== undefined
+        ? FnTransform.stringify(importCallback)
+        : undefined;
 
     const event: CompilerEvent = {
       type: "compile",
