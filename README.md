@@ -51,15 +51,21 @@ import {
 ## **Create a new Compiler Instance**
 
 ```typescript
-const compiler = new Solc(callback? : (Solc: Solc) => any);
+const compiler = new Solc();
 ```
 
-> Note that when creating a new compiler instance, the newly created worker will fetch `solc/wrapper` bundle(~500 KB) and the `solc` binary(~8 MB).
+Note that when creating a new compiler instance, the newly created worker will fetch `solc/wrapper` bundle(~500 KB) and the `solc` binary(~8 MB). this may take a while.
 
 ## **Compile**
 
 ```typescript
 const output = await compiler.compile(contract);
+```
+
+### or
+
+```typescript
+const output = compiler.compile(contract).then((output) => /** do something with the output */);
 ```
 
 ## **Support for Import Callback**
