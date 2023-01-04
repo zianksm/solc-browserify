@@ -7,6 +7,11 @@ import { _version } from "./constant";
 import { CompilerHelpers, FnTransform } from "./helpers";
 
 export type CallbackFn = (Solc: Solc) => any;
+export type CompilerOutput = {
+  contracts: any;
+  errors: any;
+  sources: any;
+};
 /**
  * instantiate this as soon as possible so that the WebWoker can initialize the compiler
  * and is ready for compilation when needed.
@@ -72,7 +77,7 @@ export class Solc {
   public async compile(
     contract: string,
     importCallback?: ImportCallbackFn
-  ): Promise<any> {
+  ): Promise<CompilerOutput> {
     return new Promise((resolve, reject) => {
       const message = this.createCompilerInput(contract, importCallback);
 
