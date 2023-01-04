@@ -78,8 +78,10 @@ export class Solc {
 
       this.worker.postMessage(message);
 
-      this.worker.onmessage = (event) => {
-        resolve(JSON.parse(event.data));
+      this.worker.onmessage = (event: MessageEvent<CompilerEvent>) => {
+        if (event.data.type === "out") {
+          resolve(JSON.parse(event.data.output));
+        }
       };
 
       this.worker.onerror = (err) => {

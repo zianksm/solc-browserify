@@ -33,6 +33,10 @@ type CompilerEvent =
   | {
       type: "ready";
       status: boolean;
+    }
+  | {
+      type: "out";
+      output: any;
     };
 
 type Version = {
@@ -113,16 +117,17 @@ class Compiler {
   }
 
   private compile(input: any, fn?: FnString) {
-    let compilerOutput;
+    let output;
 
     if (fn === undefined) {
-      compilerOutput = this.solc.compile(input);
+      output = this.solc.compile(input);
     } else {
       const callback = this.constructFn(fn);
 
-      compilerOutput = this.solc.compile(input, { import: callback });
+      output = this.solc.compile(input, { import: callback });
     }
-    this.ctx.postMessage(compilerOutput);
+    const event: CompilerEvent = { type: "out", output };
+    this.ctx.postMessage(event);
   }
 
   private constructFn(fn: FnString) {
