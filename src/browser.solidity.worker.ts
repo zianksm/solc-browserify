@@ -73,6 +73,16 @@ class Compiler {
     const module = this.ctx.Module;
 
     this.solc = wrapper(module);
+    this.ready();
+  }
+
+  private ready() {
+    const event: CompilerEvent = {
+      type: "ready",
+      status: true,
+    };
+
+    this.ctx.postMessage(event);
   }
 
   private getVersionScript(version: Version) {
