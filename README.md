@@ -29,13 +29,13 @@ but this came at a cost, because we use the bundled native `solc/wrapper`, we ef
 ## **Installation**
 
 ```bash
-npm i solc-browerify
+npm i solc-browserify
 ```
 
 ### using yarn
 
 ```bash
-yarn add solc-browerify
+yarn add solc-browserify
 ```
 
 ## **Import it in your app**
