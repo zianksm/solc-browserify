@@ -1,10 +1,7 @@
-import {
-  Compiler,
-  CompilerEvent,
-  ImportCallbackFn,
-} from "./browser.solidity.worker";
+import { CompilerEvent, ImportCallbackFn } from "./browser.solidity.worker";
 import { _version } from "./constant";
 import { CompilerHelpers, FnTransform } from "./helpers";
+import { _Worker } from "./worker";
 
 export type CallbackFn = (Solc: Solc) => any;
 export type CompilerOutput<T = any, U = any> = {
@@ -118,10 +115,10 @@ export class Solc {
       };
     });
   }
-
+  // TODO : build -> read the generated webworker class -> turn it into string -> save it in a file in the dist folder as string const -> import it here to use it as inline web worker
   private createCompilerWebWorker() {
     return new Worker(
-      URL.createObjectURL(new Blob([`(new ${Compiler})`], { type: "module" }))
+      URL.createObjectURL(new Blob([`(new ${_Worker})`], { type: "module" }))
     );
   }
 
