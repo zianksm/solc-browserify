@@ -70,6 +70,12 @@ note that the import callback function MUST be pure, synchronous, and takes in e
 ### **Basic example using import callback**
 
 ```typescript
+import {
+  Solc,
+  ImportCallbackFn,
+  ImportCallbackReturnType,
+} from "solc-browserify";
+
 const contract = `import "lib.sol";
 
 contract C {
@@ -79,7 +85,7 @@ contract C {
     }
 }`;
 
-const importCallback: ImportCallbackFn = function (
+const callback: ImportCallbackFn = function (
   path: string
 ): ImportCallbackReturnType {
   const libSol = `library L { function f() internal returns (uint) { return 7; }`;
@@ -98,6 +104,13 @@ const importCallback: ImportCallbackFn = function (
 
   return contract;
 };
+
+async function main() {
+  const solc = new Solc();
+  const contract = await solc.compile(contract, callback);
+}
+
+main();
 ```
 
 # Example
