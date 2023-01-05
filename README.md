@@ -102,4 +102,4 @@ const importCallback: ImportCallbackFn = function (
 
 # Example
 
-**WIP**
+[**Here**](https://zianksm.github.io/solc-browserify-example/)
