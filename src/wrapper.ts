@@ -118,7 +118,7 @@ export class Solc {
       };
     });
   }
-
+  // TODO : build -> read the generated webworker class -> turn it into string -> save it in a file in the dist folder as string const -> import it here to use it as inline web worker
   private createCompilerWebWorker() {
     return new Worker(
       URL.createObjectURL(new Blob([`(new ${Compiler})`], { type: "module" }))
