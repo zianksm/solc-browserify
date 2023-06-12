@@ -1,4 +1,4 @@
-![](https://img.shields.io/badge/using%20solc-0.8.17-blue)
+![](https://img.shields.io/badge/using%20solc-0.8.20-blue)
 
 # Solc Browserify
 

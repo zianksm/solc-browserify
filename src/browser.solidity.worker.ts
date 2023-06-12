@@ -71,7 +71,7 @@ class Compiler {
     importScripts(`https://binaries.soliditylang.org/bin/${buildVersion}`);
     // will emit global `wrapper`
     importScripts(
-      "https://unpkg.com/solc-wrapper-bundle@latest/dist/bundle.js"
+      `https://unpkg.com/solc-wrapper-bundle@${version.default}/dist/bundle.js`
     );
     const wrapper = this.ctx.wrapper;
     const module = this.ctx.Module;

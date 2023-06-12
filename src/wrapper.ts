@@ -102,7 +102,7 @@ export class Solc {
         }
 
         // in case of the compile method is invoked before the callback is executed.
-        //usually the compile method is invoked when the compiler isn't yet initialized.
+        // usually the compile method is invoked when the compiler isn't yet initialized.
         if (event.data.type === "ready") {
           if (this.callback !== undefined) {
             this.callback(this);

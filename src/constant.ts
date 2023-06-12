@@ -1,6 +1,6 @@
 import { version } from "./browser.solidity.worker";
 
-const DEFAULT_COMPILER_VERSION = "0.8.17";
+const DEFAULT_COMPILER_VERSION = "0.8.20";
 
 /**
  * compiler version used
