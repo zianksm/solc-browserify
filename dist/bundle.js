@@ -3744,7 +3744,7 @@ module.exports = function () {
   debug.apply(null, arguments);
 };
 
-},{"debug":89}],14:[function(require,module,exports){
+},{"debug":94}],14:[function(require,module,exports){
 var url = require("url");
 var URL = url.URL;
 var http = require("http");
@@ -4367,7 +4367,7 @@ function isBuffer(value) {
 module.exports = wrap({ http: http, https: https });
 module.exports.wrap = wrap;
 
-},{"./debug":13,"assert":1,"http":60,"https":24,"stream":45,"url":80}],15:[function(require,module,exports){
+},{"./debug":13,"assert":1,"http":65,"https":24,"stream":50,"url":85}],15:[function(require,module,exports){
 'use strict';
 
 var isCallable = require('is-callable');
@@ -4954,7 +4954,7 @@ function validateParams (params) {
   return params
 }
 
-},{"http":60,"url":80}],25:[function(require,module,exports){
+},{"http":65,"url":85}],25:[function(require,module,exports){
 /*! ieee754. BSD-3-Clause License. Feross Aboukhadijeh <https://feross.org/opensource> */
 exports.read = function (buffer, offset, isLE, mLen, nBytes) {
   var e, m
@@ -6185,7 +6185,7 @@ MemoryReadableStream.prototype.toBuffer = function () {
 module.exports = MemoryStream;
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"buffer":8,"stream":45,"string_decoder":79,"util":85}],33:[function(require,module,exports){
+},{"buffer":8,"stream":50,"string_decoder":84,"util":90}],33:[function(require,module,exports){
 /*
 object-assign
 (c) Sindre Sorhus
@@ -8735,6 +8735,393 @@ function coerce (version) {
 }).call(this)}).call(this,require('_process'))
 },{"_process":34}],41:[function(require,module,exports){
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.setupCompile = void 0;
+const assert_1 = __importDefault(require("assert"));
+const helpers_1 = require("../common/helpers");
+const helpers_2 = require("./helpers");
+function setupCompile(solJson, core) {
+    return {
+        compileJson: bindCompileJson(solJson),
+        compileJsonCallback: bindCompileJsonCallback(solJson, core),
+        compileJsonMulti: bindCompileJsonMulti(solJson),
+        compileStandard: bindCompileStandard(solJson, core)
+    };
+}
+exports.setupCompile = setupCompile;
+/**********************
+ * COMPILE
+ **********************/
+/**
+ * Returns a binding to the solidity compileJSON method.
+ * input (text), optimize (bool) -> output (jsontext)
+ *
+ * @param solJson The Emscripten compiled Solidity object.
+ */
+function bindCompileJson(solJson) {
+    return (0, helpers_2.bindSolcMethod)(solJson, 'compileJSON', 'string', ['string', 'number'], null);
+}
+/**
+ * Returns a binding to the solidity compileJSONMulti method.
+ * input (jsontext), optimize (bool) -> output (jsontext)
+ *
+ * @param solJson The Emscripten compiled Solidity object.
+ */
+function bindCompileJsonMulti(solJson) {
+    return (0, helpers_2.bindSolcMethod)(solJson, 'compileJSONMulti', 'string', ['string', 'number'], null);
+}
+/**
+ * Returns a binding to the solidity compileJSONCallback method.
+ * input (jsontext), optimize (bool), callback (ptr) -> output (jsontext)
+ *
+ * @param solJson The Emscripten compiled Solidity object.
+ * @param coreBindings The core bound Solidity methods.
+ */
+function bindCompileJsonCallback(solJson, coreBindings) {
+    const compileInternal = (0, helpers_2.bindSolcMethod)(solJson, 'compileJSONCallback', 'string', ['string', 'number', 'number'], null);
+    if ((0, helpers_1.isNil)(compileInternal))
+        return null;
+    return function (input, optimize, readCallback) {
+        return runWithCallbacks(solJson, coreBindings, readCallback, compileInternal, [input, optimize]);
+    };
+}
+/**
+ * Returns a binding to the solidity solidity_compile method with a fallback to
+ * compileStandard.
+ * input (jsontext), callback (optional >= v6 only - ptr) -> output (jsontext)
+ *
+ * @param solJson The Emscripten compiled Solidity object.
+ * @param coreBindings The core bound Solidity methods.
+ */
+function bindCompileStandard(solJson, coreBindings) {
+    let boundFunctionStandard = null;
+    let boundFunctionSolidity = null;
+    // input (jsontext), callback (ptr) -> output (jsontext)
+    const compileInternal = (0, helpers_2.bindSolcMethod)(solJson, 'compileStandard', 'string', ['string', 'number'], null);
+    if (coreBindings.isVersion6OrNewer) {
+        // input (jsontext), callback (ptr), callback_context (ptr) -> output (jsontext)
+        boundFunctionSolidity = (0, helpers_2.bindSolcMethod)(solJson, 'solidity_compile', 'string', ['string', 'number', 'number'], null);
+    }
+    else {
+        // input (jsontext), callback (ptr) -> output (jsontext)
+        boundFunctionSolidity = (0, helpers_2.bindSolcMethod)(solJson, 'solidity_compile', 'string', ['string', 'number'], null);
+    }
+    if (!(0, helpers_1.isNil)(compileInternal)) {
+        boundFunctionStandard = function (input, readCallback) {
+            return runWithCallbacks(solJson, coreBindings, readCallback, compileInternal, [input]);
+        };
+    }
+    if (!(0, helpers_1.isNil)(boundFunctionSolidity)) {
+        boundFunctionStandard = function (input, callbacks) {
+            return runWithCallbacks(solJson, coreBindings, callbacks, boundFunctionSolidity, [input]);
+        };
+    }
+    return boundFunctionStandard;
+}
+/**********************
+ * CALL BACKS
+ **********************/
+function wrapCallback(coreBindings, callback) {
+    (0, assert_1.default)(typeof callback === 'function', 'Invalid callback specified.');
+    return function (data, contents, error) {
+        const result = callback(coreBindings.copyFromCString(data));
+        if (typeof result.contents === 'string') {
+            coreBindings.copyToCString(result.contents, contents);
+        }
+        if (typeof result.error === 'string') {
+            coreBindings.copyToCString(result.error, error);
+        }
+    };
+}
+function wrapCallbackWithKind(coreBindings, callback) {
+    (0, assert_1.default)(typeof callback === 'function', 'Invalid callback specified.');
+    return function (context, kind, data, contents, error) {
+        // Must be a null pointer.
+        (0, assert_1.default)(context === 0, 'Callback context must be null.');
+        const result = callback(coreBindings.copyFromCString(kind), coreBindings.copyFromCString(data));
+        if (typeof result.contents === 'string') {
+            coreBindings.copyToCString(result.contents, contents);
+        }
+        if (typeof result.error === 'string') {
+            coreBindings.copyToCString(result.error, error);
+        }
+    };
+}
+// calls compile() with args || cb
+function runWithCallbacks(solJson, coreBindings, callbacks, compile, args) {
+    if (callbacks) {
+        (0, assert_1.default)(typeof callbacks === 'object', 'Invalid callback object specified.');
+    }
+    else {
+        callbacks = {};
+    }
+    let readCallback = callbacks.import;
+    if (readCallback === undefined) {
+        readCallback = function (data) {
+            return {
+                error: 'File import callback not supported'
+            };
+        };
+    }
+    let singleCallback;
+    if (coreBindings.isVersion6OrNewer) {
+        // After 0.6.x multiple kind of callbacks are supported.
+        let smtSolverCallback = callbacks.smtSolver;
+        if (smtSolverCallback === undefined) {
+            smtSolverCallback = function (data) {
+                return {
+                    error: 'SMT solver callback not supported'
+                };
+            };
+        }
+        singleCallback = function (kind, data) {
+            if (kind === 'source') {
+                return readCallback(data);
+            }
+            else if (kind === 'smt-query') {
+                return smtSolverCallback(data);
+            }
+            else {
+                (0, assert_1.default)(false, 'Invalid callback kind specified.');
+            }
+        };
+        singleCallback = wrapCallbackWithKind(coreBindings, singleCallback);
+    }
+    else {
+        // Old Solidity version only supported imports.
+        singleCallback = wrapCallback(coreBindings, readCallback);
+    }
+    const cb = coreBindings.addFunction(singleCallback, 'viiiii');
+    let output;
+    try {
+        args.push(cb);
+        if (coreBindings.isVersion6OrNewer) {
+            // Callback context.
+            args.push(null);
+        }
+        output = compile(...args);
+    }
+    finally {
+        coreBindings.removeFunction(cb);
+    }
+    if (coreBindings.reset) {
+        // Explicitly free memory.
+        //
+        // NOTE: cwrap() of "compile" will copy the returned pointer into a
+        //       Javascript string and it is not possible to call free() on it.
+        //       reset() however will clear up all allocations.
+        coreBindings.reset();
+    }
+    return output;
+}
+
+},{"../common/helpers":45,"./helpers":43,"assert":1}],42:[function(require,module,exports){
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.setupCore = void 0;
+const helpers_1 = require("./helpers");
+const translate_1 = __importDefault(require("../translate"));
+const semver = __importStar(require("semver"));
+const helpers_2 = require("../common/helpers");
+function setupCore(solJson) {
+    const core = {
+        alloc: bindAlloc(solJson),
+        license: bindLicense(solJson),
+        version: bindVersion(solJson),
+        reset: bindReset(solJson)
+    };
+    const helpers = {
+        addFunction: unboundAddFunction.bind(this, solJson),
+        removeFunction: unboundRemoveFunction.bind(this, solJson),
+        copyFromCString: unboundCopyFromCString.bind(this, solJson),
+        copyToCString: unboundCopyToCString.bind(this, solJson, core.alloc),
+        // @ts-ignore
+        versionToSemver: versionToSemver(core.version())
+    };
+    return {
+        ...core,
+        ...helpers,
+        isVersion6OrNewer: semver.gt(helpers.versionToSemver(), '0.5.99')
+    };
+}
+exports.setupCore = setupCore;
+/**********************
+ * Core Functions
+ **********************/
+/**
+ * Returns a binding to the solidity_alloc function.
+ *
+ * @param solJson The Emscripten compiled Solidity object.
+ */
+function bindAlloc(solJson) {
+    const allocBinding = (0, helpers_1.bindSolcMethod)(solJson, 'solidity_alloc', 'number', ['number'], null);
+    // the fallback malloc is not a cwrap function and should just be returned
+    // directly in-case the alloc binding could not happen.
+    if ((0, helpers_2.isNil)(allocBinding)) {
+        return solJson._malloc;
+    }
+    return allocBinding;
+}
+/**
+ * Returns a binding to the solidity_version method.
+ *
+ * @param solJson The Emscripten compiled Solidity object.
+ */
+function bindVersion(solJson) {
+    return (0, helpers_1.bindSolcMethodWithFallbackFunc)(solJson, 'solidity_version', 'string', [], 'version');
+}
+function versionToSemver(version) {
+    return translate_1.default.versionToSemver.bind(this, version);
+}
+/**
+ * Returns a binding to the solidity_license method.
+ *
+ * If the current solJson version < 0.4.14 then this will bind an empty function.
+ *
+ * @param solJson The Emscripten compiled Solidity object.
+ */
+function bindLicense(solJson) {
+    return (0, helpers_1.bindSolcMethodWithFallbackFunc)(solJson, 'solidity_license', 'string', [], 'license', () => {
+    });
+}
+/**
+ * Returns a binding to the solidity_reset method.
+ *
+ * @param solJson The Emscripten compiled Solidity object.
+ */
+function bindReset(solJson) {
+    return (0, helpers_1.bindSolcMethod)(solJson, 'solidity_reset', null, [], null);
+}
+/**********************
+ * Helpers Functions
+ **********************/
+/**
+ * Copy to a C string.
+ *
+ * Allocates memory using solc's allocator.
+ *
+ * Before 0.6.0:
+ *   Assuming copyToCString is only used in the context of wrapCallback, solc will free these pointers.
+ *   See https://github.com/ethereum/solidity/blob/v0.5.13/libsolc/libsolc.h#L37-L40
+ *
+ * After 0.6.0:
+ *   The duty is on solc-js to free these pointers. We accomplish that by calling `reset` at the end.
+ *
+ * @param solJson The Emscripten compiled Solidity object.
+ * @param alloc The memory allocation function.
+ * @param str The source string being copied to a C string.
+ * @param ptr The pointer location where the C string will be set.
+ */
+function unboundCopyToCString(solJson, alloc, str, ptr) {
+    const length = solJson.lengthBytesUTF8(str);
+    const buffer = alloc(length + 1);
+    solJson.stringToUTF8(str, buffer, length + 1);
+    solJson.setValue(ptr, buffer, '*');
+}
+/**
+ * Wrapper over Emscripten's C String copying function (which can be different
+ * on different versions).
+ *
+ * @param solJson The Emscripten compiled Solidity object.
+ * @param ptr The pointer location where the C string will be referenced.
+ */
+function unboundCopyFromCString(solJson, ptr) {
+    const copyFromCString = solJson.UTF8ToString || solJson.Pointer_stringify;
+    return copyFromCString(ptr);
+}
+function unboundAddFunction(solJson, func, signature) {
+    return (solJson.addFunction || solJson.Runtime.addFunction)(func, signature);
+}
+function unboundRemoveFunction(solJson, ptr) {
+    return (solJson.removeFunction || solJson.Runtime.removeFunction)(ptr);
+}
+
+},{"../common/helpers":45,"../translate":48,"./helpers":43,"semver":40}],43:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.getSupportedMethods = exports.bindSolcMethodWithFallbackFunc = exports.bindSolcMethod = void 0;
+const helpers_1 = require("../common/helpers");
+function bindSolcMethod(solJson, method, returnType, args, defaultValue) {
+    if ((0, helpers_1.isNil)(solJson[`_${method}`]) && defaultValue !== undefined) {
+        return defaultValue;
+    }
+    return solJson.cwrap(method, returnType, args);
+}
+exports.bindSolcMethod = bindSolcMethod;
+function bindSolcMethodWithFallbackFunc(solJson, method, returnType, args, fallbackMethod, finalFallback = undefined) {
+    const methodFunc = bindSolcMethod(solJson, method, returnType, args, null);
+    if (!(0, helpers_1.isNil)(methodFunc)) {
+        return methodFunc;
+    }
+    return bindSolcMethod(solJson, fallbackMethod, returnType, args, finalFallback);
+}
+exports.bindSolcMethodWithFallbackFunc = bindSolcMethodWithFallbackFunc;
+function getSupportedMethods(solJson) {
+    return {
+        licenseSupported: anyMethodExists(solJson, 'solidity_license'),
+        versionSupported: anyMethodExists(solJson, 'solidity_version'),
+        allocSupported: anyMethodExists(solJson, 'solidity_alloc'),
+        resetSupported: anyMethodExists(solJson, 'solidity_reset'),
+        compileJsonSupported: anyMethodExists(solJson, 'compileJSON'),
+        compileJsonMultiSupported: anyMethodExists(solJson, 'compileJSONMulti'),
+        compileJsonCallbackSuppported: anyMethodExists(solJson, 'compileJSONCallback'),
+        compileJsonStandardSupported: anyMethodExists(solJson, 'compileStandard', 'solidity_compile')
+    };
+}
+exports.getSupportedMethods = getSupportedMethods;
+function anyMethodExists(solJson, ...names) {
+    return names.some(name => !(0, helpers_1.isNil)(solJson[`_${name}`]));
+}
+
+},{"../common/helpers":45}],44:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const core_1 = require("./core");
+const helpers_1 = require("./helpers");
+const compile_1 = require("./compile");
+function setupBindings(solJson) {
+    const coreBindings = (0, core_1.setupCore)(solJson);
+    const compileBindings = (0, compile_1.setupCompile)(solJson, coreBindings);
+    const methodFlags = (0, helpers_1.getSupportedMethods)(solJson);
+    return {
+        methodFlags,
+        coreBindings,
+        compileBindings
+    };
+}
+exports.default = setupBindings;
+
+},{"./compile":41,"./core":42,"./helpers":43}],45:[function(require,module,exports){
+"use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.isObject = exports.isNil = void 0;
 /**
@@ -8759,7 +9146,26 @@ function isObject(value) {
 }
 exports.isObject = isObject;
 
-},{}],42:[function(require,module,exports){
+},{}],46:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.formatFatalError = void 0;
+function formatFatalError(message) {
+    return JSON.stringify({
+        errors: [
+            {
+                type: 'JSONError',
+                component: 'solcjs',
+                severity: 'error',
+                message: message,
+                formattedMessage: 'Error: ' + message
+            }
+        ]
+    });
+}
+exports.formatFatalError = formatFatalError;
+
+},{}],47:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -8917,7 +9323,7 @@ module.exports = {
     findLinkReferences
 };
 
-},{"./common/helpers":41,"assert":1,"js-sha3":31}],43:[function(require,module,exports){
+},{"./common/helpers":45,"assert":1,"js-sha3":31}],48:[function(require,module,exports){
 "use strict";
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
@@ -9105,370 +9511,152 @@ module.exports = {
     prettyPrintLegacyAssemblyJSON
 };
 
-},{"./linker":42}],44:[function(require,module,exports){
+},{"./linker":47}],49:[function(require,module,exports){
 "use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
-const translate_1 = __importDefault(require("./translate"));
-const follow_redirects_1 = require("follow-redirects");
 const memorystream_1 = __importDefault(require("memorystream"));
-const assert_1 = __importDefault(require("assert"));
-const semver = __importStar(require("semver"));
+const follow_redirects_1 = require("follow-redirects");
+const formatters_1 = require("./formatters");
+const helpers_1 = require("./common/helpers");
+const bindings_1 = __importDefault(require("./bindings"));
+const translate_1 = __importDefault(require("./translate"));
 const Module = module.constructor;
-function setupMethods(soljson) {
-    let version;
-    if ('_solidity_version' in soljson) {
-        version = soljson.cwrap('solidity_version', 'string', []);
-    }
-    else {
-        version = soljson.cwrap('version', 'string', []);
-    }
-    const versionToSemver = function () {
-        return translate_1.default.versionToSemver(version());
-    };
-    const isVersion6 = semver.gt(versionToSemver(), '0.5.99');
-    let license;
-    if ('_solidity_license' in soljson) {
-        license = soljson.cwrap('solidity_license', 'string', []);
-    }
-    else if ('_license' in soljson) {
-        license = soljson.cwrap('license', 'string', []);
-    }
-    else {
-        // pre 0.4.14
-        license = function () {
-            // return undefined
-        };
-    }
-    let alloc;
-    if ('_solidity_alloc' in soljson) {
-        alloc = soljson.cwrap('solidity_alloc', 'number', ['number']);
-    }
-    else {
-        alloc = soljson._malloc;
-        (0, assert_1.default)(alloc, 'Expected malloc to be present.');
-    }
-    let reset;
-    if ('_solidity_reset' in soljson) {
-        reset = soljson.cwrap('solidity_reset', null, []);
-    }
-    const copyToCString = function (str, ptr) {
-        const length = soljson.lengthBytesUTF8(str);
-        // This is allocating memory using solc's allocator.
-        //
-        // Before 0.6.0:
-        //   Assuming copyToCString is only used in the context of wrapCallback, solc will free these pointers.
-        //   See https://github.com/ethereum/solidity/blob/v0.5.13/libsolc/libsolc.h#L37-L40
-        //
-        // After 0.6.0:
-        //   The duty is on solc-js to free these pointers. We accomplish that by calling `reset` at the end.
-        const buffer = alloc(length + 1);
-        soljson.stringToUTF8(str, buffer, length + 1);
-        soljson.setValue(ptr, buffer, '*');
-    };
-    // This is to support multiple versions of Emscripten.
-    // Take a single `ptr` and returns a `str`.
-    const copyFromCString = soljson.UTF8ToString || soljson.Pointer_stringify;
-    const wrapCallback = function (callback) {
-        (0, assert_1.default)(typeof callback === 'function', 'Invalid callback specified.');
-        return function (data, contents, error) {
-            const result = callback(copyFromCString(data));
-            if (typeof result.contents === 'string') {
-                copyToCString(result.contents, contents);
-            }
-            if (typeof result.error === 'string') {
-                copyToCString(result.error, error);
-            }
-        };
-    };
-    const wrapCallbackWithKind = function (callback) {
-        (0, assert_1.default)(typeof callback === 'function', 'Invalid callback specified.');
-        return function (context, kind, data, contents, error) {
-            // Must be a null pointer.
-            (0, assert_1.default)(context === 0, 'Callback context must be null.');
-            const result = callback(copyFromCString(kind), copyFromCString(data));
-            if (typeof result.contents === 'string') {
-                copyToCString(result.contents, contents);
-            }
-            if (typeof result.error === 'string') {
-                copyToCString(result.error, error);
-            }
-        };
-    };
-    // This calls compile() with args || cb
-    const runWithCallbacks = function (callbacks, compile, args) {
-        if (callbacks) {
-            (0, assert_1.default)(typeof callbacks === 'object', 'Invalid callback object specified.');
-        }
-        else {
-            callbacks = {};
-        }
-        let readCallback = callbacks.import;
-        if (readCallback === undefined) {
-            readCallback = function (data) {
-                return {
-                    error: 'File import callback not supported'
-                };
-            };
-        }
-        let singleCallback;
-        if (isVersion6) {
-            // After 0.6.x multiple kind of callbacks are supported.
-            let smtSolverCallback = callbacks.smtSolver;
-            if (smtSolverCallback === undefined) {
-                smtSolverCallback = function (data) {
-                    return {
-                        error: 'SMT solver callback not supported'
-                    };
-                };
-            }
-            singleCallback = function (kind, data) {
-                if (kind === 'source') {
-                    return readCallback(data);
-                }
-                else if (kind === 'smt-query') {
-                    return smtSolverCallback(data);
-                }
-                else {
-                    (0, assert_1.default)(false, 'Invalid callback kind specified.');
-                }
-            };
-            singleCallback = wrapCallbackWithKind(singleCallback);
-        }
-        else {
-            // Old Solidity version only supported imports.
-            singleCallback = wrapCallback(readCallback);
-        }
-        // This is to support multiple versions of Emscripten.
-        const addFunction = soljson.addFunction || soljson.Runtime.addFunction;
-        const removeFunction = soljson.removeFunction || soljson.Runtime.removeFunction;
-        const cb = addFunction(singleCallback, 'viiiii');
-        let output;
-        try {
-            args.push(cb);
-            if (isVersion6) {
-                // Callback context.
-                args.push(null);
-            }
-            output = compile.apply(undefined, args);
-        }
-        catch (e) {
-            removeFunction(cb);
-            throw e;
-        }
-        removeFunction(cb);
-        if (reset) {
-            // Explicitly free memory.
-            //
-            // NOTE: cwrap() of "compile" will copy the returned pointer into a
-            //       Javascript string and it is not possible to call free() on it.
-            //       reset() however will clear up all allocations.
-            reset();
-        }
-        return output;
-    };
-    let compileJSON = null;
-    if ('_compileJSON' in soljson) {
-        // input (text), optimize (bool) -> output (jsontext)
-        compileJSON = soljson.cwrap('compileJSON', 'string', ['string', 'number']);
-    }
-    let compileJSONMulti = null;
-    if ('_compileJSONMulti' in soljson) {
-        // input (jsontext), optimize (bool) -> output (jsontext)
-        compileJSONMulti = soljson.cwrap('compileJSONMulti', 'string', ['string', 'number']);
-    }
-    let compileJSONCallback = null;
-    if ('_compileJSONCallback' in soljson) {
-        // input (jsontext), optimize (bool), callback (ptr) -> output (jsontext)
-        const compileInternal = soljson.cwrap('compileJSONCallback', 'string', ['string', 'number', 'number']);
-        compileJSONCallback = function (input, optimize, readCallback) {
-            return runWithCallbacks(readCallback, compileInternal, [input, optimize]);
-        };
-    }
-    let compileStandard = null;
-    if ('_compileStandard' in soljson) {
-        // input (jsontext), callback (ptr) -> output (jsontext)
-        const compileStandardInternal = soljson.cwrap('compileStandard', 'string', ['string', 'number']);
-        compileStandard = function (input, readCallback) {
-            return runWithCallbacks(readCallback, compileStandardInternal, [input]);
-        };
-    }
-    if ('_solidity_compile' in soljson) {
-        let solidityCompile;
-        if (isVersion6) {
-            // input (jsontext), callback (ptr), callback_context (ptr) -> output (jsontext)
-            solidityCompile = soljson.cwrap('solidity_compile', 'string', ['string', 'number', 'number']);
-        }
-        else {
-            // input (jsontext), callback (ptr) -> output (jsontext)
-            solidityCompile = soljson.cwrap('solidity_compile', 'string', ['string', 'number']);
-        }
-        compileStandard = function (input, callbacks) {
-            return runWithCallbacks(callbacks, solidityCompile, [input]);
-        };
-    }
-    // Expects a Standard JSON I/O but supports old compilers
-    const compileStandardWrapper = function (input, readCallback) {
-        if (compileStandard !== null) {
-            return compileStandard(input, readCallback);
-        }
-        function formatFatalError(message) {
-            return JSON.stringify({
-                errors: [
-                    {
-                        type: 'JSONError',
-                        component: 'solcjs',
-                        severity: 'error',
-                        message: message,
-                        formattedMessage: 'Error: ' + message
-                    }
-                ]
-            });
-        }
-        try {
-            input = JSON.parse(input);
-        }
-        catch (e) {
-            return formatFatalError('Invalid JSON supplied: ' + e.message);
-        }
-        if (input.language !== 'Solidity') {
-            return formatFatalError('Only "Solidity" is supported as a language.');
-        }
-        // NOTE: this is deliberately `== null`
-        if (input.sources == null || input.sources.length === 0) {
-            return formatFatalError('No input sources specified.');
-        }
-        function isOptimizerEnabled(input) {
-            return input.settings && input.settings.optimizer && input.settings.optimizer.enabled;
-        }
-        function translateSources(input) {
-            const sources = {};
-            for (const source in input.sources) {
-                if (input.sources[source].content !== null) {
-                    sources[source] = input.sources[source].content;
-                }
-                else {
-                    // force failure
-                    return null;
-                }
-            }
-            return sources;
-        }
-        function librariesSupplied(input) {
-            if (input.settings) {
-                return input.settings.libraries;
-            }
-        }
-        function translateOutput(output, libraries) {
-            try {
-                output = JSON.parse(output);
-            }
-            catch (e) {
-                return formatFatalError('Compiler returned invalid JSON: ' + e.message);
-            }
-            output = translate_1.default.translateJsonCompilerOutput(output, libraries);
-            if (output == null) {
-                return formatFatalError('Failed to process output.');
-            }
-            return JSON.stringify(output);
-        }
-        const sources = translateSources(input);
-        if (sources === null || Object.keys(sources).length === 0) {
-            return formatFatalError('Failed to process sources.');
-        }
-        // Try linking if libraries were supplied
-        const libraries = librariesSupplied(input);
-        // Try to wrap around old versions
-        if (compileJSONCallback !== null) {
-            return translateOutput(compileJSONCallback(JSON.stringify({ sources: sources }), isOptimizerEnabled(input), readCallback), libraries);
-        }
-        if (compileJSONMulti !== null) {
-            return translateOutput(compileJSONMulti(JSON.stringify({ sources: sources }), isOptimizerEnabled(input)), libraries);
-        }
-        // Try our luck with an ancient compiler
-        if (compileJSON !== null) {
-            if (Object.keys(sources).length !== 1) {
-                return formatFatalError('Multiple sources provided, but compiler only supports single input.');
-            }
-            return translateOutput(compileJSON(sources[Object.keys(sources)[0]], isOptimizerEnabled(input)), libraries);
-        }
-        return formatFatalError('Compiler does not support any known interface.');
-    };
+function wrapper(soljson) {
+    const { coreBindings, compileBindings, methodFlags } = (0, bindings_1.default)(soljson);
     return {
-        version: version,
-        semver: versionToSemver,
-        license: license,
+        version: coreBindings.version,
+        semver: coreBindings.versionToSemver,
+        license: coreBindings.license,
         lowlevel: {
-            compileSingle: compileJSON,
-            compileMulti: compileJSONMulti,
-            compileCallback: compileJSONCallback,
-            compileStandard: compileStandard
+            compileSingle: compileBindings.compileJson,
+            compileMulti: compileBindings.compileJsonMulti,
+            compileCallback: compileBindings.compileJsonCallback,
+            compileStandard: compileBindings.compileStandard
         },
         features: {
-            legacySingleInput: compileJSON !== null,
-            multipleInputs: compileJSONMulti !== null || compileStandard !== null,
-            importCallback: compileJSONCallback !== null || compileStandard !== null,
-            nativeStandardJSON: compileStandard !== null
+            legacySingleInput: methodFlags.compileJsonStandardSupported,
+            multipleInputs: methodFlags.compileJsonMultiSupported || methodFlags.compileJsonStandardSupported,
+            importCallback: methodFlags.compileJsonCallbackSuppported || methodFlags.compileJsonStandardSupported,
+            nativeStandardJSON: methodFlags.compileJsonStandardSupported
         },
-        compile: compileStandardWrapper,
+        compile: compileStandardWrapper.bind(this, compileBindings),
         // Loads the compiler of the given version from the github repository
         // instead of from the local filesystem.
-        loadRemoteVersion: function (versionString, cb) {
-            const mem = new memorystream_1.default(null, { readable: false });
-            const url = 'https://binaries.soliditylang.org/bin/soljson-' + versionString + '.js';
-            follow_redirects_1.https.get(url, function (response) {
-                if (response.statusCode !== 200) {
-                    cb(new Error('Error retrieving binary: ' + response.statusMessage));
-                }
-                else {
-                    response.pipe(mem);
-                    response.on('end', function () {
-                        // Based on the require-from-string package.
-                        const soljson = new Module();
-                        soljson._compile(mem.toString(), 'soljson-' + versionString + '.js');
-                        if (module.parent && module.parent.children) {
-                            // Make sure the module is plugged into the hierarchy correctly to have parent
-                            // properly garbage collected.
-                            module.parent.children.splice(module.parent.children.indexOf(soljson), 1);
-                        }
-                        cb(null, setupMethods(soljson.exports));
-                    });
-                }
-            }).on('error', function (error) {
-                cb(error);
-            });
-        },
+        loadRemoteVersion,
         // Use this if you want to add wrapper functions around the pure module.
-        setupMethods: setupMethods
+        setupMethods: wrapper
     };
 }
-module.exports = setupMethods;
+function loadRemoteVersion(versionString, callback) {
+    const memoryStream = new memorystream_1.default(null, { readable: false });
+    const url = `https://binaries.soliditylang.org/bin/soljson-${versionString}.js`;
+    follow_redirects_1.https.get(url, response => {
+        if (response.statusCode !== 200) {
+            callback(new Error(`Error retrieving binary: ${response.statusMessage}`));
+        }
+        else {
+            response.pipe(memoryStream);
+            response.on('end', () => {
+                // Based on the require-from-string package.
+                const soljson = new Module();
+                soljson._compile(memoryStream.toString(), `soljson-${versionString}.js`);
+                if (module.parent && module.parent.children) {
+                    // Make sure the module is plugged into the hierarchy correctly to have parent
+                    // properly garbage collected.
+                    module.parent.children.splice(module.parent.children.indexOf(soljson), 1);
+                }
+                callback(null, wrapper(soljson.exports));
+            });
+        }
+    }).on('error', function (error) {
+        callback(error);
+    });
+}
+// Expects a Standard JSON I/O but supports old compilers
+function compileStandardWrapper(compile, inputRaw, readCallback) {
+    if (!(0, helpers_1.isNil)(compile.compileStandard)) {
+        return compile.compileStandard(inputRaw, readCallback);
+    }
+    let input;
+    try {
+        input = JSON.parse(inputRaw);
+    }
+    catch (e) {
+        return (0, formatters_1.formatFatalError)(`Invalid JSON supplied: ${e.message}`);
+    }
+    if (input.language !== 'Solidity') {
+        return (0, formatters_1.formatFatalError)('Only "Solidity" is supported as a language.');
+    }
+    // NOTE: this is deliberately `== null`
+    if ((0, helpers_1.isNil)(input.sources) || input.sources.length === 0) {
+        return (0, formatters_1.formatFatalError)('No input sources specified.');
+    }
+    const sources = translateSources(input);
+    const optimize = isOptimizerEnabled(input);
+    const libraries = librariesSupplied(input);
+    if ((0, helpers_1.isNil)(sources) || Object.keys(sources).length === 0) {
+        return (0, formatters_1.formatFatalError)('Failed to process sources.');
+    }
+    // Try to wrap around old versions
+    if (!(0, helpers_1.isNil)(compile.compileJsonCallback)) {
+        const inputJson = JSON.stringify({ sources: sources });
+        const output = compile.compileJsonCallback(inputJson, optimize, readCallback);
+        return translateOutput(output, libraries);
+    }
+    if (!(0, helpers_1.isNil)(compile.compileJsonMulti)) {
+        const output = compile.compileJsonMulti(JSON.stringify({ sources: sources }), optimize);
+        return translateOutput(output, libraries);
+    }
+    // Try our luck with an ancient compiler
+    if (!(0, helpers_1.isNil)(compile.compileJson)) {
+        if (Object.keys(sources).length > 1) {
+            return (0, formatters_1.formatFatalError)('Multiple sources provided, but compiler only supports single input.');
+        }
+        const input = sources[Object.keys(sources)[0]];
+        const output = compile.compileJson(input, optimize);
+        return translateOutput(output, libraries);
+    }
+    return (0, formatters_1.formatFatalError)('Compiler does not support any known interface.');
+}
+function isOptimizerEnabled(input) {
+    return input.settings && input.settings.optimizer && input.settings.optimizer.enabled;
+}
+function translateSources(input) {
+    const sources = {};
+    for (const source in input.sources) {
+        if (input.sources[source].content !== null) {
+            sources[source] = input.sources[source].content;
+        }
+        else {
+            // force failure
+            return null;
+        }
+    }
+    return sources;
+}
+function librariesSupplied(input) {
+    if (!(0, helpers_1.isNil)(input.settings))
+        return input.settings.libraries;
+}
+function translateOutput(outputRaw, libraries) {
+    let parsedOutput;
+    try {
+        parsedOutput = JSON.parse(outputRaw);
+    }
+    catch (e) {
+        return (0, formatters_1.formatFatalError)(`Compiler returned invalid JSON: ${e.message}`);
+    }
+    const output = translate_1.default.translateJsonCompilerOutput(parsedOutput, libraries);
+    if ((0, helpers_1.isNil)(output)) {
+        return (0, formatters_1.formatFatalError)('Failed to process output.');
+    }
+    return JSON.stringify(output);
+}
+module.exports = wrapper;
 
-},{"./translate":43,"assert":1,"follow-redirects":14,"memorystream":32,"semver":40}],45:[function(require,module,exports){
+},{"./bindings":44,"./common/helpers":45,"./formatters":46,"./translate":48,"follow-redirects":14,"memorystream":32}],50:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -9599,7 +9787,7 @@ Stream.prototype.pipe = function(dest, options) {
   return dest;
 };
 
-},{"events":12,"inherits":26,"readable-stream/lib/_stream_duplex.js":47,"readable-stream/lib/_stream_passthrough.js":48,"readable-stream/lib/_stream_readable.js":49,"readable-stream/lib/_stream_transform.js":50,"readable-stream/lib/_stream_writable.js":51,"readable-stream/lib/internal/streams/end-of-stream.js":55,"readable-stream/lib/internal/streams/pipeline.js":57}],46:[function(require,module,exports){
+},{"events":12,"inherits":26,"readable-stream/lib/_stream_duplex.js":52,"readable-stream/lib/_stream_passthrough.js":53,"readable-stream/lib/_stream_readable.js":54,"readable-stream/lib/_stream_transform.js":55,"readable-stream/lib/_stream_writable.js":56,"readable-stream/lib/internal/streams/end-of-stream.js":60,"readable-stream/lib/internal/streams/pipeline.js":62}],51:[function(require,module,exports){
 'use strict';
 
 function _inheritsLoose(subClass, superClass) { subClass.prototype = Object.create(superClass.prototype); subClass.prototype.constructor = subClass; subClass.__proto__ = superClass; }
@@ -9728,7 +9916,7 @@ createErrorType('ERR_UNKNOWN_ENCODING', function (arg) {
 createErrorType('ERR_STREAM_UNSHIFT_AFTER_END_EVENT', 'stream.unshift() after end event');
 module.exports.codes = codes;
 
-},{}],47:[function(require,module,exports){
+},{}],52:[function(require,module,exports){
 (function (process){(function (){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -9870,7 +10058,7 @@ Object.defineProperty(Duplex.prototype, 'destroyed', {
   }
 });
 }).call(this)}).call(this,require('_process'))
-},{"./_stream_readable":49,"./_stream_writable":51,"_process":34,"inherits":26}],48:[function(require,module,exports){
+},{"./_stream_readable":54,"./_stream_writable":56,"_process":34,"inherits":26}],53:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -9910,7 +10098,7 @@ function PassThrough(options) {
 PassThrough.prototype._transform = function (chunk, encoding, cb) {
   cb(null, chunk);
 };
-},{"./_stream_transform":50,"inherits":26}],49:[function(require,module,exports){
+},{"./_stream_transform":55,"inherits":26}],54:[function(require,module,exports){
 (function (process,global){(function (){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -11037,7 +11225,7 @@ function indexOf(xs, x) {
   return -1;
 }
 }).call(this)}).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../errors":46,"./_stream_duplex":47,"./internal/streams/async_iterator":52,"./internal/streams/buffer_list":53,"./internal/streams/destroy":54,"./internal/streams/from":56,"./internal/streams/state":58,"./internal/streams/stream":59,"_process":34,"buffer":8,"events":12,"inherits":26,"string_decoder/":79,"util":7}],50:[function(require,module,exports){
+},{"../errors":51,"./_stream_duplex":52,"./internal/streams/async_iterator":57,"./internal/streams/buffer_list":58,"./internal/streams/destroy":59,"./internal/streams/from":61,"./internal/streams/state":63,"./internal/streams/stream":64,"_process":34,"buffer":8,"events":12,"inherits":26,"string_decoder/":84,"util":7}],55:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -11239,7 +11427,7 @@ function done(stream, er, data) {
   if (stream._transformState.transforming) throw new ERR_TRANSFORM_ALREADY_TRANSFORMING();
   return stream.push(null);
 }
-},{"../errors":46,"./_stream_duplex":47,"inherits":26}],51:[function(require,module,exports){
+},{"../errors":51,"./_stream_duplex":52,"inherits":26}],56:[function(require,module,exports){
 (function (process,global){(function (){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -11939,7 +12127,7 @@ Writable.prototype._destroy = function (err, cb) {
   cb(err);
 };
 }).call(this)}).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"../errors":46,"./_stream_duplex":47,"./internal/streams/destroy":54,"./internal/streams/state":58,"./internal/streams/stream":59,"_process":34,"buffer":8,"inherits":26,"util-deprecate":82}],52:[function(require,module,exports){
+},{"../errors":51,"./_stream_duplex":52,"./internal/streams/destroy":59,"./internal/streams/state":63,"./internal/streams/stream":64,"_process":34,"buffer":8,"inherits":26,"util-deprecate":87}],57:[function(require,module,exports){
 (function (process){(function (){
 'use strict';
 
@@ -12149,7 +12337,7 @@ var createReadableStreamAsyncIterator = function createReadableStreamAsyncIterat
 
 module.exports = createReadableStreamAsyncIterator;
 }).call(this)}).call(this,require('_process'))
-},{"./end-of-stream":55,"_process":34}],53:[function(require,module,exports){
+},{"./end-of-stream":60,"_process":34}],58:[function(require,module,exports){
 'use strict';
 
 function ownKeys(object, enumerableOnly) { var keys = Object.keys(object); if (Object.getOwnPropertySymbols) { var symbols = Object.getOwnPropertySymbols(object); if (enumerableOnly) symbols = symbols.filter(function (sym) { return Object.getOwnPropertyDescriptor(object, sym).enumerable; }); keys.push.apply(keys, symbols); } return keys; }
@@ -12360,7 +12548,7 @@ function () {
 
   return BufferList;
 }();
-},{"buffer":8,"util":7}],54:[function(require,module,exports){
+},{"buffer":8,"util":7}],59:[function(require,module,exports){
 (function (process){(function (){
 'use strict'; // undocumented cb() API, needed for core, not for public API
 
@@ -12468,7 +12656,7 @@ module.exports = {
   errorOrDestroy: errorOrDestroy
 };
 }).call(this)}).call(this,require('_process'))
-},{"_process":34}],55:[function(require,module,exports){
+},{"_process":34}],60:[function(require,module,exports){
 // Ported from https://github.com/mafintosh/end-of-stream with
 // permission from the author, Mathias Buus (@mafintosh).
 'use strict';
@@ -12573,12 +12761,12 @@ function eos(stream, opts, callback) {
 }
 
 module.exports = eos;
-},{"../../../errors":46}],56:[function(require,module,exports){
+},{"../../../errors":51}],61:[function(require,module,exports){
 module.exports = function () {
   throw new Error('Readable.from is not available in the browser')
 };
 
-},{}],57:[function(require,module,exports){
+},{}],62:[function(require,module,exports){
 // Ported from https://github.com/mafintosh/pump with
 // permission from the author, Mathias Buus (@mafintosh).
 'use strict';
@@ -12676,7 +12864,7 @@ function pipeline() {
 }
 
 module.exports = pipeline;
-},{"../../../errors":46,"./end-of-stream":55}],58:[function(require,module,exports){
+},{"../../../errors":51,"./end-of-stream":60}],63:[function(require,module,exports){
 'use strict';
 
 var ERR_INVALID_OPT_VALUE = require('../../../errors').codes.ERR_INVALID_OPT_VALUE;
@@ -12704,10 +12892,10 @@ function getHighWaterMark(state, options, duplexKey, isDuplex) {
 module.exports = {
   getHighWaterMark: getHighWaterMark
 };
-},{"../../../errors":46}],59:[function(require,module,exports){
+},{"../../../errors":51}],64:[function(require,module,exports){
 module.exports = require('events').EventEmitter;
 
-},{"events":12}],60:[function(require,module,exports){
+},{"events":12}],65:[function(require,module,exports){
 (function (global){(function (){
 var ClientRequest = require('./lib/request')
 var response = require('./lib/response')
@@ -12795,7 +12983,7 @@ http.METHODS = [
 	'UNSUBSCRIBE'
 ]
 }).call(this)}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./lib/request":62,"./lib/response":63,"builtin-status-codes":9,"url":80,"xtend":87}],61:[function(require,module,exports){
+},{"./lib/request":67,"./lib/response":68,"builtin-status-codes":9,"url":85,"xtend":92}],66:[function(require,module,exports){
 (function (global){(function (){
 exports.fetch = isFunction(global.fetch) && isFunction(global.ReadableStream)
 
@@ -12858,7 +13046,7 @@ function isFunction (value) {
 xhr = null // Help gc
 
 }).call(this)}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],62:[function(require,module,exports){
+},{}],67:[function(require,module,exports){
 (function (process,global,Buffer){(function (){
 var capability = require('./capability')
 var inherits = require('inherits')
@@ -13214,7 +13402,7 @@ var unsafeHeaders = [
 ]
 
 }).call(this)}).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer)
-},{"./capability":61,"./response":63,"_process":34,"buffer":8,"inherits":26,"readable-stream":78}],63:[function(require,module,exports){
+},{"./capability":66,"./response":68,"_process":34,"buffer":8,"inherits":26,"readable-stream":83}],68:[function(require,module,exports){
 (function (process,global,Buffer){(function (){
 var capability = require('./capability')
 var inherits = require('inherits')
@@ -13429,35 +13617,35 @@ IncomingMessage.prototype._onXHRProgress = function (resetTimers) {
 }
 
 }).call(this)}).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer)
-},{"./capability":61,"_process":34,"buffer":8,"inherits":26,"readable-stream":78}],64:[function(require,module,exports){
-arguments[4][46][0].apply(exports,arguments)
-},{"dup":46}],65:[function(require,module,exports){
-arguments[4][47][0].apply(exports,arguments)
-},{"./_stream_readable":67,"./_stream_writable":69,"_process":34,"dup":47,"inherits":26}],66:[function(require,module,exports){
-arguments[4][48][0].apply(exports,arguments)
-},{"./_stream_transform":68,"dup":48,"inherits":26}],67:[function(require,module,exports){
-arguments[4][49][0].apply(exports,arguments)
-},{"../errors":64,"./_stream_duplex":65,"./internal/streams/async_iterator":70,"./internal/streams/buffer_list":71,"./internal/streams/destroy":72,"./internal/streams/from":74,"./internal/streams/state":76,"./internal/streams/stream":77,"_process":34,"buffer":8,"dup":49,"events":12,"inherits":26,"string_decoder/":79,"util":7}],68:[function(require,module,exports){
-arguments[4][50][0].apply(exports,arguments)
-},{"../errors":64,"./_stream_duplex":65,"dup":50,"inherits":26}],69:[function(require,module,exports){
+},{"./capability":66,"_process":34,"buffer":8,"inherits":26,"readable-stream":83}],69:[function(require,module,exports){
 arguments[4][51][0].apply(exports,arguments)
-},{"../errors":64,"./_stream_duplex":65,"./internal/streams/destroy":72,"./internal/streams/state":76,"./internal/streams/stream":77,"_process":34,"buffer":8,"dup":51,"inherits":26,"util-deprecate":82}],70:[function(require,module,exports){
+},{"dup":51}],70:[function(require,module,exports){
 arguments[4][52][0].apply(exports,arguments)
-},{"./end-of-stream":73,"_process":34,"dup":52}],71:[function(require,module,exports){
+},{"./_stream_readable":72,"./_stream_writable":74,"_process":34,"dup":52,"inherits":26}],71:[function(require,module,exports){
 arguments[4][53][0].apply(exports,arguments)
-},{"buffer":8,"dup":53,"util":7}],72:[function(require,module,exports){
+},{"./_stream_transform":73,"dup":53,"inherits":26}],72:[function(require,module,exports){
 arguments[4][54][0].apply(exports,arguments)
-},{"_process":34,"dup":54}],73:[function(require,module,exports){
+},{"../errors":69,"./_stream_duplex":70,"./internal/streams/async_iterator":75,"./internal/streams/buffer_list":76,"./internal/streams/destroy":77,"./internal/streams/from":79,"./internal/streams/state":81,"./internal/streams/stream":82,"_process":34,"buffer":8,"dup":54,"events":12,"inherits":26,"string_decoder/":84,"util":7}],73:[function(require,module,exports){
 arguments[4][55][0].apply(exports,arguments)
-},{"../../../errors":64,"dup":55}],74:[function(require,module,exports){
+},{"../errors":69,"./_stream_duplex":70,"dup":55,"inherits":26}],74:[function(require,module,exports){
 arguments[4][56][0].apply(exports,arguments)
-},{"dup":56}],75:[function(require,module,exports){
+},{"../errors":69,"./_stream_duplex":70,"./internal/streams/destroy":77,"./internal/streams/state":81,"./internal/streams/stream":82,"_process":34,"buffer":8,"dup":56,"inherits":26,"util-deprecate":87}],75:[function(require,module,exports){
 arguments[4][57][0].apply(exports,arguments)
-},{"../../../errors":64,"./end-of-stream":73,"dup":57}],76:[function(require,module,exports){
+},{"./end-of-stream":78,"_process":34,"dup":57}],76:[function(require,module,exports){
 arguments[4][58][0].apply(exports,arguments)
-},{"../../../errors":64,"dup":58}],77:[function(require,module,exports){
+},{"buffer":8,"dup":58,"util":7}],77:[function(require,module,exports){
 arguments[4][59][0].apply(exports,arguments)
-},{"dup":59,"events":12}],78:[function(require,module,exports){
+},{"_process":34,"dup":59}],78:[function(require,module,exports){
+arguments[4][60][0].apply(exports,arguments)
+},{"../../../errors":69,"dup":60}],79:[function(require,module,exports){
+arguments[4][61][0].apply(exports,arguments)
+},{"dup":61}],80:[function(require,module,exports){
+arguments[4][62][0].apply(exports,arguments)
+},{"../../../errors":69,"./end-of-stream":78,"dup":62}],81:[function(require,module,exports){
+arguments[4][63][0].apply(exports,arguments)
+},{"../../../errors":69,"dup":63}],82:[function(require,module,exports){
+arguments[4][64][0].apply(exports,arguments)
+},{"dup":64,"events":12}],83:[function(require,module,exports){
 exports = module.exports = require('./lib/_stream_readable.js');
 exports.Stream = exports;
 exports.Readable = exports;
@@ -13468,7 +13656,7 @@ exports.PassThrough = require('./lib/_stream_passthrough.js');
 exports.finished = require('./lib/internal/streams/end-of-stream.js');
 exports.pipeline = require('./lib/internal/streams/pipeline.js');
 
-},{"./lib/_stream_duplex.js":65,"./lib/_stream_passthrough.js":66,"./lib/_stream_readable.js":67,"./lib/_stream_transform.js":68,"./lib/_stream_writable.js":69,"./lib/internal/streams/end-of-stream.js":73,"./lib/internal/streams/pipeline.js":75}],79:[function(require,module,exports){
+},{"./lib/_stream_duplex.js":70,"./lib/_stream_passthrough.js":71,"./lib/_stream_readable.js":72,"./lib/_stream_transform.js":73,"./lib/_stream_writable.js":74,"./lib/internal/streams/end-of-stream.js":78,"./lib/internal/streams/pipeline.js":80}],84:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -13765,7 +13953,7 @@ function simpleWrite(buf) {
 function simpleEnd(buf) {
   return buf && buf.length ? this.write(buf) : '';
 }
-},{"safe-buffer":39}],80:[function(require,module,exports){
+},{"safe-buffer":39}],85:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -14499,7 +14687,7 @@ Url.prototype.parseHost = function() {
   if (host) this.hostname = host;
 };
 
-},{"./util":81,"punycode":35,"querystring":38}],81:[function(require,module,exports){
+},{"./util":86,"punycode":35,"querystring":38}],86:[function(require,module,exports){
 'use strict';
 
 module.exports = {
@@ -14517,7 +14705,7 @@ module.exports = {
   }
 };
 
-},{}],82:[function(require,module,exports){
+},{}],87:[function(require,module,exports){
 (function (global){(function (){
 
 /**
@@ -14588,9 +14776,9 @@ function config (name) {
 }
 
 }).call(this)}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],83:[function(require,module,exports){
+},{}],88:[function(require,module,exports){
 arguments[4][3][0].apply(exports,arguments)
-},{"dup":3}],84:[function(require,module,exports){
+},{"dup":3}],89:[function(require,module,exports){
 // Currently in sync with Node.js lib/internal/util/types.js
 // https://github.com/nodejs/node/commit/112cc7c27551254aa2b17098fb774867f05ed0d9
 
@@ -14926,7 +15114,7 @@ exports.isAnyArrayBuffer = isAnyArrayBuffer;
   });
 });
 
-},{"is-arguments":27,"is-generator-function":29,"is-typed-array":30,"which-typed-array":86}],85:[function(require,module,exports){
+},{"is-arguments":27,"is-generator-function":29,"is-typed-array":30,"which-typed-array":91}],90:[function(require,module,exports){
 (function (process){(function (){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -15645,7 +15833,7 @@ function callbackify(original) {
 exports.callbackify = callbackify;
 
 }).call(this)}).call(this,require('_process'))
-},{"./support/isBuffer":83,"./support/types":84,"_process":34,"inherits":26}],86:[function(require,module,exports){
+},{"./support/isBuffer":88,"./support/types":89,"_process":34,"inherits":26}],91:[function(require,module,exports){
 (function (global){(function (){
 'use strict';
 
@@ -15704,7 +15892,7 @@ module.exports = function whichTypedArray(value) {
 };
 
 }).call(this)}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"available-typed-arrays":5,"call-bind/callBound":10,"for-each":15,"gopd":19,"has-tostringtag/shams":22,"is-typed-array":30}],87:[function(require,module,exports){
+},{"available-typed-arrays":5,"call-bind/callBound":10,"for-each":15,"gopd":19,"has-tostringtag/shams":22,"is-typed-array":30}],92:[function(require,module,exports){
 module.exports = extend
 
 var hasOwnProperty = Object.prototype.hasOwnProperty;
@@ -15725,12 +15913,12 @@ function extend() {
     return target
 }
 
-},{}],88:[function(require,module,exports){
+},{}],93:[function(require,module,exports){
 const wrapper = require("solc/wrapper");
 
 self.wrapper = wrapper;
 
-},{"solc/wrapper":44}],89:[function(require,module,exports){
+},{"solc/wrapper":49}],94:[function(require,module,exports){
 (function (process){(function (){
 /* eslint-env browser */
 
@@ -16003,7 +16191,7 @@ formatters.j = function (v) {
 };
 
 }).call(this)}).call(this,require('_process'))
-},{"./common":90,"_process":34}],90:[function(require,module,exports){
+},{"./common":95,"_process":34}],95:[function(require,module,exports){
 
 /**
  * This is the common logic for both the Node.js and web browser
@@ -16279,7 +16467,7 @@ function setup(env) {
 
 module.exports = setup;
 
-},{"ms":91}],91:[function(require,module,exports){
+},{"ms":96}],96:[function(require,module,exports){
 /**
  * Helpers.
  */
@@ -16443,4 +16631,4 @@ function plural(ms, msAbs, n, name) {
   return Math.round(ms / n) + ' ' + name + (isPlural ? 's' : '');
 }
 
-},{}]},{},[88]);
+},{}]},{},[93]);

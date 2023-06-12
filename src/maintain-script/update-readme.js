@@ -15,7 +15,17 @@ async function main() {
 
     fs.writeFileSync("./README.md", readmeContent);
 
+    updatePackageJsonVersion(version);
+
     return;
+}
+
+function updatePackageJsonVersion(version) {
+    const packageJsonPath = path.resolve(process.cwd(), 'package.json');
+    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+    packageJson.version = version.toString();
+
+    fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2));
 }
 
 main()
