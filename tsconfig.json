@@ -12,7 +12,6 @@
     "noUnusedParameters": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
-    "sourceMap": true,
     "moduleResolution": "Node"
   },
   "include": ["./src/"],
