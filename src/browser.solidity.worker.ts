@@ -22,7 +22,7 @@ type CompilerEvent =
       type: "compile";
       compilerInput: any;
       /**
-       * MUST be a pure function to avoid reference errors.
+       * MUST be a pure function and not a closure to avoid reference errors.
        */
       importCallback?: FnString;
     }

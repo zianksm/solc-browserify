@@ -69,7 +69,7 @@ export class Solc {
   /**
    *
    * @param contract contract body
-   * @param importCallback import callback function, currently does not support arrow function. only support synchronous function.
+   * @param importCallback import callback function, currently does not support arrow function and closures. only support synchronous function.
    * ```javascript
    * // this is not supported
    * const resolveDeps = (path) =>{
@@ -115,7 +115,7 @@ export class Solc {
       };
     });
   }
-  // TODO : build -> read the generated webworker class -> turn it into string -> save it in a file in the dist folder as string const -> import it here to use it as inline web worker
+
   private createCompilerWebWorker() {
     return new Worker(
       URL.createObjectURL(new Blob([`(new ${_Worker})`], { type: "module" }))

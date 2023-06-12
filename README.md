@@ -14,7 +14,7 @@ this package uses a different method to initialize the compiler, it uses the bun
 
 ### **How it works**
 
-this is accomplished by using a **dedicated web worker** and browserifying the `solc/wrapper` module, and then uploading the bundled module to npm. the worker then fetch the bundled wrapper module directly using `importScripts` from `unkpg(open-source cdn for npm)`. check the bundled module [here](https://www.npmjs.com/package/solc-wrapper-bundle).
+this is accomplished by using a **dedicated web worker** and browserifying the `solc/wrapper` module, and then uploading the bundled module to npm. the worker then fetch the bundled wrapper module directly using `importScripts` from `unpkg(open-source cdn for npm)`. check the bundled module [here](https://www.npmjs.com/package/solc-wrapper-bundle).
 
 ### **Why use the bundled wrapper ?**
 
@@ -65,7 +65,7 @@ const output = await compiler.compile(contract);
 ## **Support for Import Callback**
 
 this package have support for passing import callback function to the compiler.
-note that the import callback function MUST be pure, synchronous, and takes in exactly 1 parameter for the import path.
+note that the import callback cannot be a closure, MUST be pure function, synchronous, and takes in exactly 1 parameter for the import path.
 
 ### **Basic example using import callback**
 
