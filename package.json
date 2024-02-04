@@ -46,6 +46,7 @@
     "typescript": "^4.8.4"
   },
   "dependencies": {
+    "@types/sharedworker": "^0.0.111",
     "dexie": "^3.2.4"
   }
 }
