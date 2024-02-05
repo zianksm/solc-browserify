@@ -43,33 +43,157 @@ export namespace Database {
 export namespace Compiler {
   /**
    * all interface are referenced from official compiler docs
-   * at https://docs.soliditylang.org/en/latest/using-the-compiler.html#compiler-api
+   * at https://docs.soliditylang.org/en/latest/using-the-compiler.html#compiler-api.
+   *
+   * this library only support inputs that uses Solidity languange as inputs. and currently only support compiling 1 contract with import callbacks
+   * or with supplied contract via the db worker.
    */
   export namespace Interface {
-    export type Solidity = "Solidity";
-    export const Solidity = "Solidity";
-    export type Yul = "Yul";
-    export const Yul = "Yul";
+    export namespace Input {
+      export type Solidity = "Solidity";
+      export const Solidity = "Solidity";
 
-    /**
-     * experimental
-     */
-    export type SolidityAst = "SolidityAst";
-    /**
-     * experimental
-     */
-    export const SolidityAst = "SolidityAst";
+      export type SupportedLanguages = Solidity;
 
-    /**
-     * experimental
-     */
-    export type EVMAssembly = "EVMAssembly";
-    /**
-     * experimental
-     */
-    export const EVMAssembly = "EVMAssembly";
+      export type SourceKey = {
+        /**
+         * Optional: keccak256 hash of the source file
+         * It is used to verify the retrieved content if imported via URLs.
+         */
+        keccak256?: string;
+        /**
+         * The actual source code
+         */
+        content: string;
+      };
 
-    export type SupportedLanguages = Solidity | Yul | SolidityAst | EVMAssembly;
+      export type Optimizer = {
+        /**
+         * Enable the bytecode optimizer.
+         */
+        enabled: boolean;
+        /**
+         * Optimize for how many times you intend to run the code.
+         * Lower values will optimize more for initial deployment cost, higher values will optimize more for high-frequency usage.
+         */
+        runs: number;
+      };
+
+      export type Input = {
+        language: SupportedLanguages;
+        sources: {
+          contract: SourceKey;
+        };
+
+        settings?: {
+          optimizer?: Optimizer;
+        };
+        outputSelection: object;
+      };
+
+      export const DEFAULT_OUTPUT_SELECTION = {
+        "*": {
+          "*": ["*"],
+          "": ["*"],
+        },
+      } as const;
+    }
+
+    export namespace Output {
+      export type JSONError = "JSONError";
+      export const JSONError = "JSONError";
+
+      export type IOError = "IOError";
+      export const IOError = "IOError";
+
+      export type ParserError = "ParserError";
+      export const ParserError = "ParserError";
+
+      export type DocstringParsingError = "DocstringParsingError";
+      export const DocstringParsingError = "DocstringParsingError";
+
+      export type SyntaxError = "SyntaxError";
+      export const SyntaxError = "SyntaxError";
+
+      export type DeclarationError = "DeclarationError";
+      export const DeclarationError = "DeclarationError";
+
+      export type TypeError = "TypeError";
+      export const TypeError = "TypeError";
+
+      export type UnimplementedFeatureError = "UnimplementedFeatureError";
+      export const UnimplementedFeatureError = "UnimplementedFeatureError";
+
+      export type InternalCompilerError = "InternalCompilerError";
+      export const InternalCompilerError = "InternalCompilerError";
+
+      export type Exception = "Exception";
+      export const Exception = "Exception";
+
+      export type CompilerError = "CompilerError";
+      export const CompilerError = "CompilerError";
+
+      export type FatalError = "FatalError";
+      export const FatalError = "FatalError";
+
+      export type YulExecption = "YulExecption";
+      export const YulExecption = "YulExecption";
+
+      export type Warning = "Warning";
+      export const Warning = "Warning";
+
+      export type Info = "Info";
+      export const Info = "Info";
+      export type ErrorType =
+        | JSONError
+        | IOError
+        | ParserError
+        | DocstringParsingError
+        | SyntaxError
+        | DeclarationError
+        | TypeError
+        | UnimplementedFeatureError
+        | InternalCompilerError
+        | Exception
+        | CompilerError
+        | FatalError
+        | YulExecption
+        | Warning
+        | Info;
+
+      export type secondarySourceLocationsError = {
+        file: string;
+        start: number;
+        end: number;
+        message: string;
+      };
+
+      export type Error = {
+        /**
+         * Error location within the source file
+         */
+        sourceLocation?: {
+          file: string;
+          start: number;
+          end: number;
+        };
+
+        /**
+         * Further locations (e.g. places of conflicting declarations)
+         */
+        secondarySourceLocations?: secondarySourceLocationsError[];
+
+        type: ErrorType;
+
+        component: string;
+        severity: "error" | "warning" | "info";
+        errorCode?: string;
+        message: string;
+        formattedMessage?: string;
+      };
+
+      export type CompilerOutput = {};
+    }
   }
 
   export type CallbackFunctionFragment = {
