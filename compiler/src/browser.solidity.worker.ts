@@ -1,3 +1,4 @@
+import * as Dispatch from "./dispatch";
 // worker cannot import modules directly using require or import statements. because we activate the worker using inline blob method.
 // worker should use imporScripts instead.
 declare global {
@@ -146,4 +147,28 @@ export {
   Version as version,
   ImportCallbackFn,
   ImportCallbackReturnType,
+};
+
+let compiler;
+
+self.onconnect = (_) => {
+  compiler = new Compiler();
+};
+
+self.onmessage = (
+  event: MessageEvent<Dispatch.Compiler.Dispatchable.CompilerDispatchMessage>
+) => {
+  const raw = event.data;
+  if (raw.action === "init") {
+    const data = raw;
+    data.
+    // db.storeContract(path, contract);
+  } else if (raw.action === Dispatch.Compiler.Retrieve) {
+    const { path } = raw;
+    // const contract = await db.retrieveContract(path);
+    // self.postMessage(contract);
+  } else if (raw.action === Dispatch.Compiler.Delete) {
+    const { path } = raw;
+    // db.deleteContract(path);
+  }
 };

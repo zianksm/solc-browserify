@@ -10,7 +10,7 @@ self.onconnect = (_) => {
 
 self.onmessage = async (e: MessageEvent<Database.DatabaseDispatchMesage>) => {
   const { data } = e;
-  data;
+
   switch (data.action) {
     case Database.Store: {
       const { path, contract } = data;
