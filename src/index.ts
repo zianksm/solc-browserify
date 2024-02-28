@@ -1,3 +1,3 @@
 export * from './wrapper';
-export * from "./compiler";
+export * from './browser.solidity.worker';
 export * from './constant';
