@@ -1,3 +1,5 @@
+import { SupportedVersion } from "./constant";
+
 export type DispatchMessage<Actions> = {
   action: Actions;
 };
@@ -79,7 +81,7 @@ export namespace Compiler {
         runs: number;
       };
 
-      export type Input = {
+      export type CompilerInput = {
         language: SupportedLanguages;
         sources: {
           contract: SourceKey;
@@ -362,7 +364,8 @@ export namespace Compiler {
     export type Compile = "compile";
     export const Compile = "compile";
     export type CompilePayload = {
-      compilerInput: any;
+      version: SupportedVersion;
+      compilerInput: Compiler.Interface.Input.CompilerInput;
       importCallback?: CallbackFunctionFragment;
     };
     export type CompileDispatch = DispatchMessageWithPayload<
@@ -373,13 +376,14 @@ export namespace Compiler {
     export type Init = "init";
     export const Init = "init";
     export type InitPayload = {
-      version: Interface.Version;
+      version: SupportedVersion;
     };
     export type InitDispatch = DispatchMessageWithPayload<Init, InitPayload>;
 
     export type Ready = "ready";
     export const Ready = "ready";
     export type ReadyPayload = {
+      version: SupportedVersion;
       status: boolean;
     };
     export type ReadyDispatch = DispatchMessageWithPayload<Ready, ReadyPayload>;
@@ -387,7 +391,8 @@ export namespace Compiler {
     export type Out = "out";
     export const Out = "out";
     export type OutPayload = {
-      output: any;
+      version: SupportedVersion;
+      output: Compiler.Interface.Output.CompilerOutput;
     };
     export type OutDispatch = DispatchMessageWithPayload<Out, OutPayload>;
 
@@ -397,6 +402,4 @@ export namespace Compiler {
       | ReadyDispatch
       | OutDispatch;
   }
-
-  export namespace DispatchResult {}
 }
