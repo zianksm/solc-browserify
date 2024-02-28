@@ -1,9 +1,9 @@
 {
   "compilerOptions": {
     "outDir": "dist",
-    "module": "ESNext",
-    "target": "ESNext",
-    "lib": ["DOM", "esnext"],
+    "module": "ES2020",
+    "target": "ES5",
+    "lib": ["DOM", "WebWorker.ImportScripts"],
     "allowJs": true,
     "declaration": true,
     "strict": true,
