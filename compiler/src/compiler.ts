@@ -33,12 +33,14 @@ class CompilerBus {
     this.emitter = new EventEmitter();
   }
 
-  public onReady(listener: () => void) {
+  public onReady(
+    listener: (payload: Dispatch.Compiler.Dispatchable.ReadyDispatch) => void
+  ) {
     this.emitter.on("ready", listener);
   }
 
-  public ready() {
-    this.emitter.emit("ready");
+  public ready(payload: Dispatch.Compiler.Dispatchable.ReadyDispatch) {
+    this.emitter.emit("ready", payload);
   }
 
   public onOutput(
@@ -70,8 +72,8 @@ class Compilers {
 
     const bus = new CompilerBus();
 
-    bus.onReady(() => {
-      this.emitter.emit("ready", version);
+    bus.onReady((payload) => {
+      this.emitter.emit("ready", payload);
     });
 
     bus.onOutput((payload) => {
@@ -87,15 +89,14 @@ class Compilers {
     });
   }
 
-  public onReady(listener: (version: SupportedVersion) => void) {
+  public onReady(
+    listener: (payload: Dispatch.Compiler.Dispatchable.ReadyDispatch) => void
+  ) {
     this.emitter.on("ready", listener);
   }
 
   public onOutput(
-    listener: (
-      payload: Dispatch.Compiler.Dispatchable.OutDispatch,
-      version: SupportedVersion
-    ) => void
+    listener: (payload: Dispatch.Compiler.Dispatchable.OutDispatch) => void
   ) {
     this.emitter.on("output", listener);
   }
@@ -134,7 +135,11 @@ class Compiler {
   }
 
   private ready() {
-    this.messagePipe.ready();
+    this.messagePipe.ready({
+      action: "ready",
+      version: this.version!,
+      status: true,
+    });
   }
 
   private bundleUrl() {
@@ -164,17 +169,16 @@ class Compiler {
       output = this.solc.compile(input, { import: callback });
     }
 
-    this.messagePipe.output(output);
+    this.messagePipe.output({
+      action: "out",
+      version: this.version!,
+      output,
+    });
   }
 
   private constructFn(fn: FnString) {
     return new Function(fn.args, fn.body);
   }
-}
-
-// function placeholder for typescript
-function importScripts(_arg0: string) {
-  throw new Error("Function not implemented.");
 }
 
 export { Compiler, ImportCallbackFn, ImportCallbackReturnType };
@@ -185,12 +189,12 @@ function getCompilers() {
   if (compiler === undefined) {
     compiler = new Compilers();
 
-    compiler.onOutput((payload, version) => {
-      self.postMessage(payload, version);
+    compiler.onOutput((payload) => {
+      self.postMessage(payload);
     });
 
-    compiler.onReady((version) => {
-      self.postMessage("ready", version);
+    compiler.onReady((payload) => {
+      self.postMessage(payload);
     });
   }
 

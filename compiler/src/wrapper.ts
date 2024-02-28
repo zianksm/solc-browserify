@@ -1,14 +1,17 @@
-import { CompilerEvent, ImportCallbackFn } from "./browser.solidity.worker";
-import { _version } from "./constant";
-import { CompilerHelpers, FnTransform } from "./helpers";
+import { ImportCallbackFn } from "./compiler";
+import { SupportedVersion, _version } from "./constant";
+import {
+  CompilerHelpers,
+  FnTransform,
+  Optimizer,
+  CompilerInput,
+} from "./helpers";
 import { _Worker } from "./worker";
 
+import * as Dispatch from "./dispatch";
+
 export type CallbackFn = (Solc: Solc) => any;
-export type CompilerOutput<T = any, U = any> = {
-  contracts?: T;
-  errors?: CompilerError[];
-  sources?: U;
-};
+export type CompilerOutput = Dispatch.Compiler.Interface.Output.CompilerOutput;
 export type CompilerError = {
   component: string;
   errorCode: string;
@@ -30,16 +33,14 @@ export type SourceLocation = {
  * and is ready for compilation when needed.
  */
 export class Solc {
+  private version: SupportedVersion;
   private worker: Worker;
   callback: CallbackFn | undefined;
 
-  /**
-   * instantiate this as soon as possible so that the WebWoker can initialize the compiler
-   * and is ready for compilation when needed.
-   */
-  constructor(callback?: CallbackFn) {
+  constructor(callback?: CallbackFn, version: SupportedVersion) {
     this.callback = callback;
     this.worker = this.createCompilerWebWorker();
+    this.version = version;
     this.onready();
     this.initWorker();
   }
@@ -96,14 +97,16 @@ export class Solc {
 
       this.worker.postMessage(message);
 
-      this.worker.onmessage = (event: MessageEvent<CompilerEvent>) => {
-        if (event.data.type === "out") {
-          resolve(JSON.parse(event.data.output));
+      this.worker.onmessage = (
+        event: MessageEvent<Dispatch.Compiler.Dispatchable.CompilerDispatchMessage>
+      ) => {
+        if (event.data.action === "out") {
+          resolve(event.data.output);
         }
 
         // in case of the compile method is invoked before the callback is executed.
         // usually the compile method is invoked when the compiler isn't yet initialized.
-        if (event.data.type === "ready") {
+        if (event.data.action === "ready") {
           if (this.callback !== undefined) {
             this.callback(this);
           }
@@ -117,25 +120,38 @@ export class Solc {
   }
 
   private createCompilerWebWorker() {
-    return new Worker(
-      URL.createObjectURL(new Blob([`(new ${_Worker})`], { type: "module" }))
+    return new SharedWorker(
+      /* webpackChunkName: "solidity-compilers" */ new URL(
+        "./compiler.js",
+        import.meta.url
+      )
     );
   }
 
   private createCompilerInput(
     contract: string,
-    importCallback?: ImportCallbackFn
+    importCallback?: ImportCallbackFn,
+    optimizer?: Optimizer,
+    options?: any,
+    outputSelection?: any
   ) {
-    const compilerInput = CompilerHelpers.createCompileInput(contract);
+    const compilerInput = CompilerHelpers.createCompileInput(
+      contract,
+      optimizer,
+      options,
+      outputSelection
+    );
+
     const fnStr =
       importCallback !== undefined
         ? FnTransform.stringify(importCallback)
         : undefined;
 
-    const event: CompilerEvent = {
-      type: "compile",
+    const event: Dispatch.Compiler.Dispatchable.CompileDispatch = {
+      action: "compile",
       importCallback: fnStr,
       compilerInput,
+      version: this.version,
     };
 
     return event;

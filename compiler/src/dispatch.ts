@@ -93,6 +93,11 @@ export namespace Compiler {
         outputSelection: object;
       };
 
+      export const DEFAULT_OPTIMIZER: Optimizer = {
+        enabled: true,
+        runs: 200,
+      };
+
       export const DEFAULT_OUTPUT_SELECTION = {
         "*": {
           "*": ["*"],
