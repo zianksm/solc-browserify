@@ -1,71 +1,58 @@
-import { CompilerEvent, ImportCallbackFn } from "./browser.solidity.worker";
-import { _version } from "./constant";
-import { CompilerHelpers, FnTransform } from "./helpers";
+import { ImportCallbackFn } from "./compiler";
+import { SupportedVersion, _version } from "./constant";
+import { CompilerHelpers, FnTransform, Optimizer } from "./helpers";
 import { _Worker } from "./worker";
+import * as Dispatch from "./dispatch";
 
 export type CallbackFn = (Solc: Solc) => any;
-export type CompilerOutput<T = any, U = any> = {
-  contracts?: T;
-  errors?: CompilerError[];
-  sources?: U;
-};
-export type CompilerError = {
-  component: string;
-  errorCode: string;
-  formattedMessage: string;
-  message: string;
-  severity: string;
-  sourceLocation: SourceLocation;
-  type: string;
-};
+export type CompilerOutput = Dispatch.Compiler.Interface.Output.CompilerOutput;
 
-export type SourceLocation = {
-  end: number;
-  file: string;
-  start: number;
-};
+// worker global scope stuff to satisfy the compiler
+declare global {
+  interface SharedWorkerGlobalScope {}
+}
 
 /**
  * instantiate this as soon as possible so that the WebWoker can initialize the compiler
  * and is ready for compilation when needed.
  */
 export class Solc {
-  private worker: Worker;
+  private version: SupportedVersion;
+  private __worker: SharedWorker; // eslint-disable-line @typescript-eslint/no-unused-vars
+  private worker: MessagePort;
   callback: CallbackFn | undefined;
 
-  /**
-   * instantiate this as soon as possible so that the WebWoker can initialize the compiler
-   * and is ready for compilation when needed.
-   */
-  constructor(callback?: CallbackFn) {
-    this.callback = callback;
-    this.worker = this.createCompilerWebWorker();
+  constructor(version: SupportedVersion, readyCallback?: CallbackFn) {
+    this.callback = readyCallback;
+    const { worker, port } = this.createCompilerWebWorker();
+    this.__worker = worker;
+    this.worker = port;
+    this.version = version;
     this.onready();
     this.initWorker();
+
+    this.____eslint_hack_dont_call_this_plz();
   }
 
   private onready() {
-    this.worker.onmessage = (_event) => {
-      const event: CompilerEvent = _event.data as any;
-
+    this.worker.onmessage = (
+      event: MessageEvent<Dispatch.Compiler.Dispatchable.CompilerDispatchMessage>
+    ) => {
       if (this.callback === undefined) {
         return;
       }
 
-      if (event.type === "ready") {
+      if (event.data.action === "ready" && event.data.status === true) {
         this.callback(this);
       }
     };
   }
 
-  private initWorker() {
-    const event: CompilerEvent = {
-      type: "init",
-      version: _version,
-    };
-
-    this.worker.postMessage(event);
+  private ____eslint_hack_dont_call_this_plz() {
+    this.__worker;
   }
+
+  private initWorker() {}
   /**
    *
    * @param contract contract body
@@ -91,51 +78,69 @@ export class Solc {
     contract: string,
     importCallback?: ImportCallbackFn
   ): Promise<CompilerOutput> {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       const message = this.createCompilerInput(contract, importCallback);
 
       this.worker.postMessage(message);
-
-      this.worker.onmessage = (event: MessageEvent<CompilerEvent>) => {
-        if (event.data.type === "out") {
-          resolve(JSON.parse(event.data.output));
+      this.worker.onmessage = (
+        event: MessageEvent<Dispatch.Compiler.Dispatchable.CompilerDispatchMessage>
+      ) => {
+        if (event.data.action === "out") {
+          resolve(event.data.output);
         }
 
         // in case of the compile method is invoked before the callback is executed.
         // usually the compile method is invoked when the compiler isn't yet initialized.
-        if (event.data.type === "ready") {
+        if (event.data.action === "ready") {
           if (this.callback !== undefined) {
             this.callback(this);
           }
         }
       };
-
-      this.worker.onerror = (err) => {
-        reject(err);
-      };
     });
   }
 
   private createCompilerWebWorker() {
-    return new Worker(
-      URL.createObjectURL(new Blob([`(new ${_Worker})`], { type: "module" }))
+    const worker = new SharedWorker(
+      /* webpackChunkName: "solidity-compilers" */ new URL(
+        "./compiler.js",
+        import.meta.url
+      )
     );
+
+    const port = worker.port;
+    port.start();
+
+    return {
+      worker,
+      port,
+    };
   }
 
   private createCompilerInput(
     contract: string,
-    importCallback?: ImportCallbackFn
+    importCallback?: ImportCallbackFn,
+    optimizer?: Optimizer,
+    options?: any,
+    outputSelection?: any
   ) {
-    const compilerInput = CompilerHelpers.createCompileInput(contract);
+    const compilerInput = CompilerHelpers.createCompileInput(
+      contract,
+      optimizer,
+      options,
+      outputSelection
+    );
+
     const fnStr =
       importCallback !== undefined
         ? FnTransform.stringify(importCallback)
         : undefined;
 
-    const event: CompilerEvent = {
-      type: "compile",
+    const event: Dispatch.Compiler.Dispatchable.CompileDispatch = {
+      action: "compile",
       importCallback: fnStr,
       compilerInput,
+      version: this.version,
     };
 
     return event;

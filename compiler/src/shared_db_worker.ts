@@ -2,15 +2,21 @@ import { ContractDB } from "./db";
 import { Database } from "./dispatch";
 let db: ContractDB;
 
+// worker global scope stuff to satisfy the compiler
+declare global {
+  interface Window {
+    onconnect: () => void;
+  }
+}
 // temporary solution, might be slow on large contract lists
 // call compile => load all known source from shared db worker => call compiler input with initial source file and all known source in contract db
-self.onconnect = (_) => {
+self.onconnect = () => {
   db = ContractDB.getInstance();
 };
 
 self.onmessage = async (e: MessageEvent<Database.DatabaseDispatchMesage>) => {
   const { data } = e;
-  data;
+
   switch (data.action) {
     case Database.Store: {
       const { path, contract } = data;
