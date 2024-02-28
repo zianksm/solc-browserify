@@ -1,4 +1,3 @@
-import { FnString } from "./compiler";
 import * as Dispatch from "./dispatch";
 export type Optimizer = Dispatch.Compiler.Interface.Input.Optimizer;
 export type CompilerInput = Dispatch.Compiler.Interface.Input.CompilerInput;

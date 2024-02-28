@@ -1,5 +1,3 @@
-import { version } from "./compiler";
-
 const DEFAULT_COMPILER_VERSION = "0.8.20";
 
 export const SUPPORTED_VERSIONS = [
@@ -14,6 +12,6 @@ export type SupportedVersion = (typeof SUPPORTED_VERSIONS)[number];
 /**
  * compiler version used
  */
-export const _version: version = {
+export const _version = {
   default: DEFAULT_COMPILER_VERSION,
 } as const;

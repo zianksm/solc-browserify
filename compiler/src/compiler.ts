@@ -3,11 +3,16 @@ import { SupportedVersion } from "./constant";
 import * as Dispatch from "./dispatch";
 // worker cannot import modules directly using require or import statements. because we activate the worker using inline blob method.
 // worker should use imporScripts instead.
+
+// worker global scope stuff to satisfy the compiler
 declare global {
   interface Worker {
     Module: any;
     solc: any;
     wrapper: any;
+  }
+  interface Window {
+    onconnect: () => void;
   }
 }
 
@@ -201,7 +206,7 @@ function getCompilers() {
   return compiler;
 }
 
-self.onconnect = (_) => {
+self.onconnect = () => {
   getCompilers();
 };
 
